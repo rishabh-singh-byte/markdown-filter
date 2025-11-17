@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # =============================================================================
 
 DEFAULT_DATA_FILE = "/Users/rishabh.singh/Desktop/markdown_filter/filter/data/confluence_markdown.jsonl"
-DEFAULT_TEST_INDEX = 100
+DEFAULT_TEST_INDEX = 7193
 
 # =============================================================================
 #                           CONVERSION MODULE IMPORT
@@ -120,6 +120,100 @@ def contains_filename_like(text: str) -> bool:
     return bool(re.search(r"\b\S+\.(pdf|docx?|xlsx?|csv|pptx?)\b", text, re.I))
 
 
+def detect_dates(text: str) -> Tuple[int, List[str]]:
+    """
+    Detect and extract dates from text in various formats.
+    
+    Supports formats:
+    - ISO: 2023-01-15, 2023/01/15, 2023.01.15
+    - Written: January 15, 2023, Jan 15 2023, 15 January 2023
+    - Short: 01/15/23, 01-15-2023, 15-01-2023
+    - Month Year: January 2023, Jan 2023
+    - Quarters: Q1 2023, Q1-2023, FY2023, FY 2023
+    - Relative: 2023 (standalone year)
+    
+    Returns:
+        Tuple of (count, list of detected dates)
+    """
+    if not text:
+        return 0, []
+    
+    dates_found = []
+    
+    # Pattern 1: ISO format dates (YYYY-MM-DD, YYYY/MM/DD, YYYY.MM.DD)
+    iso_dates = re.findall(
+        r'\b(\d{4}[-/.]\d{1,2}[-/.]\d{1,2})\b',
+        text
+    )
+    dates_found.extend(iso_dates)
+    
+    # Pattern 2: Short format (MM/DD/YYYY, DD/MM/YYYY, MM-DD-YYYY, DD-MM-YYYY, MM.DD.YYYY)
+    short_dates = re.findall(
+        r'\b(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4})\b',
+        text
+    )
+    dates_found.extend(short_dates)
+    
+    # Pattern 3: Written format with full month names
+    # January 15, 2023 | 15 January 2023 | Jan 15, 2023 | 15 Jan 2023
+    written_dates = re.findall(
+        r'\b((?:January|February|March|April|May|June|July|August|September|October|November|December|'
+        r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)'
+        r'\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4})\b',
+        text,
+        re.IGNORECASE
+    )
+    dates_found.extend(written_dates)
+    
+    # Pattern 4: Day Month Year format (15 January 2023, 15 Jan 2023)
+    day_month_year = re.findall(
+        r'\b(\d{1,2}(?:st|nd|rd|th)?\s+(?:January|February|March|April|May|June|July|August|September|October|November|December|'
+        r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+\d{4})\b',
+        text,
+        re.IGNORECASE
+    )
+    dates_found.extend(day_month_year)
+    
+    # Pattern 5: Month Year format (January 2023, Jan 2023)
+    month_year = re.findall(
+        r'\b((?:January|February|March|April|May|June|July|August|September|October|November|December|'
+        r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+\d{4})\b',
+        text,
+        re.IGNORECASE
+    )
+    dates_found.extend(month_year)
+    
+    # Pattern 6: Quarters (Q1 2023, Q1-2023, FY2023, FY 2023)
+    quarters = re.findall(
+        r'\b((?:Q[1-4]|FY)\s*[-]?\s*\d{4})\b',
+        text,
+        re.IGNORECASE
+    )
+    dates_found.extend(quarters)
+    
+    # Pattern 7: Standalone year (2020, 2021, 2022, 2023, 2024, etc.)
+    # Only match years between 1900-2099 to avoid false positives with other numbers
+    standalone_years = re.findall(
+        r'\b((?:19|20)\d{2})\b',
+        text
+    )
+    # Only count standalone years if they're not already part of another date
+    for year in standalone_years:
+        # Check if this year is not already captured in another date format
+        if not any(year in date for date in dates_found):
+            dates_found.append(year)
+    
+    # Remove duplicates while preserving order
+    unique_dates = []
+    seen = set()
+    for date in dates_found:
+        if date not in seen:
+            seen.add(date)
+            unique_dates.append(date)
+    
+    return len(unique_dates), unique_dates
+
+
 # =============================================================================
 #                       HTML TO MARKDOWN - DELEGATED TO CONVERSION3
 # =============================================================================
@@ -191,8 +285,10 @@ def extract_tables_from_markdown(md: str) -> List[List[List[str]]]:
         """Check if line is a table separator row (e.g., | --- | --- |)"""
         s = s.strip().strip('|')
         parts = [p.strip() for p in s.split('|')]
-        # All parts should be dashes/colons only
-        return all(re.fullmatch(r'[-:\s]+', p) for p in parts if p)
+        # Filter non-empty parts
+        non_empty_parts = [p for p in parts if p]
+        # Must have at least one non-empty part, and all non-empty parts should be dashes/colons only
+        return len(non_empty_parts) > 0 and all(re.fullmatch(r'[-:\s]+', p) for p in non_empty_parts)
 
     # flush the block when the table is complete, if the block has at least 2 lines
     def flush_block():
@@ -310,7 +406,9 @@ def detect_table_heading(table: List[List[str]]) -> Dict[str, Any]:
         return {
             "column_headers": None,
             "row_headers": None,
-            "heading_type": "none"
+            "heading_type": "none",
+            "is_key_value_table": False,
+            "is_index_column": False
         }
 
     rows = len(table)
@@ -320,7 +418,9 @@ def detect_table_heading(table: List[List[str]]) -> Dict[str, Any]:
         return {
             "column_headers": None,
             "row_headers": None,
-            "heading_type": "none"
+            "heading_type": "none",
+            "is_key_value_table": False,
+            "is_index_column": False
         }
     
     # Normalize all rows to same length
@@ -364,23 +464,59 @@ def detect_table_heading(table: List[List[str]]) -> Dict[str, Any]:
         # If first column is mostly filled and second column is mostly empty, it's key-value
         if first_col_filled >= rows * 0.5 and second_col_filled <= rows * 0.5:
             is_key_value_table = True
+    
+    # --- SPECIAL CASE: Index column detection ---
+    # Detect if first column contains index numbers/patterns (even if not bold)
+    # Common patterns: #, No., 1, 2, 3, i, ii, iii, a, b, c
+    is_index_column = False
+    if not all_first_col_bold and rows >= 3:  # Need at least 3 rows to detect pattern
+        def is_index_value(text: str) -> bool:
+            """Check if text looks like an index value"""
+            text = text.strip().lower()
+            if not text:
+                return False
+            
+            # Common index headers: #, no, no., number, s.no, sr.no, etc.
+            index_headers = ['#', 'no', 'no.', 'number', 's.no', 'sr.no', 'sno', 'sr', 's.no.', 'sr.no.', 'index', 'id']
+            if text in index_headers or text.replace('.', '') in index_headers:
+                return True
+            
+            # Pure numeric: 1, 2, 3, etc.
+            if text.isdigit():
+                return True
+            
+            # Roman numerals: i, ii, iii, iv, v, etc.
+            if re.fullmatch(r'^m{0,4}(cm|cd|d?c{0,3})(xc|xl|l?x{0,3})(ix|iv|v?i{0,3})$', text):
+                return True
+            
+            # Alphabetic: a, b, c, etc.
+            if len(text) == 1 and text.isalpha():
+                return True
+            
+            return False
+        
+        # Check first column cells
+        first_col_values = [r[0].strip() for r in norm_table if r and r[0].strip()]
+        
+        if len(first_col_values) >= 2:
+            # Check if first cell is an index header
+            first_is_index_header = is_index_value(first_col_values[0])
+            
+            # Check if subsequent cells are sequential indices
+            if first_is_index_header:
+                # Check if subsequent values are numeric indices
+                subsequent_values = first_col_values[1:]
+                numeric_count = sum(1 for v in subsequent_values if v.isdigit())
+                
+                # If most subsequent values are numeric, it's an index column
+                if numeric_count >= len(subsequent_values) * 0.7:
+                    is_index_column = True
 
     # --- Extract column headers (if full first row is bold) ---
     if all_first_row_bold:
         column_headers = [extract_bold_text(c) for c in first_row]
     else:
         column_headers = None
-
-    # --- Extract row headers (if full first column is bold OR if it's a key-value table) ---
-    if all_first_col_bold or is_key_value_table:
-        # Skip index [0][0] if both headers exist
-        start_row = 1 if all_first_row_bold else 0
-        row_headers = [
-            extract_bold_text(norm_table[r][0]) if all_first_col_bold else norm_table[r][0].strip()
-            for r in range(start_row, rows)
-        ]
-    else:
-        row_headers = None
 
     # --- HEURISTIC: Detect non-bold column headers ---
     # If first row not detected as bold headers, check if it looks like headers:
@@ -413,6 +549,17 @@ def detect_table_heading(table: List[List[str]]) -> Dict[str, Any]:
         if first_row_looks_like_headers and non_empty_cells >= 2:
             column_headers = [c.strip() for c in first_row]
 
+    # --- Extract row headers (if full first column is bold OR if it's a key-value table OR if it's an index column) ---
+    if all_first_col_bold or is_key_value_table or is_index_column:
+        # Skip index [0][0] if both headers exist
+        start_row = 1 if column_headers else 0
+        row_headers = [
+            extract_bold_text(norm_table[r][0]) if all_first_col_bold else norm_table[r][0].strip()
+            for r in range(start_row, rows)
+        ]
+    else:
+        row_headers = None
+
     # --- Determine heading type ---
     if column_headers and row_headers:
         heading_type = "both"
@@ -427,7 +574,8 @@ def detect_table_heading(table: List[List[str]]) -> Dict[str, Any]:
         "column_headers": column_headers,
         "row_headers": row_headers,
         "heading_type": heading_type,
-        "is_key_value_table": is_key_value_table
+        "is_key_value_table": is_key_value_table,
+        "is_index_column": is_index_column
     }
 
 
@@ -478,8 +626,76 @@ def cell_metrics(cell_text: str) -> Dict[str, Any]:
     stripped = text.strip()
     is_empty = (len(stripped) == 0)
 
-    # Extract all words
-    all_words = re.findall(r'\b\w+\b', text) if not is_empty else []
+    # Detect Confluence macro references FIRST (Jira, page links, etc.)
+    # These appear in converted markdown with clean reference format
+    macro_references = 0
+    has_macro_reference = False
+    
+    # New formats:
+    # 1. Full reference: [JIRA-REF: ...] or [INCLUDE-REF: ...] or [PAGE-REF: ...]
+    # 2. Count display: "N issues [JIRA: ...]" where N issues is visible content
+    jira_ref_pattern = r'\[JIRA-REF:[^\]]+\]'
+    jira_refs = re.findall(jira_ref_pattern, text, re.I)
+    if jira_refs:
+        macro_references += len(jira_refs)
+        has_macro_reference = True
+    
+    # JIRA count display format: "N issues [JIRA: Project]"
+    jira_count_pattern = r'\[JIRA:[^\]]+\]'
+    jira_counts = re.findall(jira_count_pattern, text, re.I)
+    if jira_counts:
+        macro_references += len(jira_counts)
+        has_macro_reference = True
+    
+    include_ref_pattern = r'\[INCLUDE-REF:[^\]]+\]'
+    include_refs = re.findall(include_ref_pattern, text, re.I)
+    if include_refs:
+        macro_references += len(include_refs)
+        has_macro_reference = True
+    
+    # PAGE-REF pattern: children, index, content-by-label macros
+    page_ref_pattern = r'\[PAGE-REF:[^\]]+\]'
+    page_refs = re.findall(page_ref_pattern, text, re.I)
+    if page_refs:
+        macro_references += len(page_refs)
+        has_macro_reference = True
+    
+    # For cells containing macro references, exclude the reference markers from word counting
+    # but keep meaningful display text like "N issues"
+    text_for_word_count = text
+    if has_macro_reference:
+        # Remove JIRA-REF markers (full reference, no visible text)
+        text_for_word_count = re.sub(
+            r'\[JIRA-REF:[^\]]+\]',
+            '',
+            text_for_word_count,
+            flags=re.I
+        )
+        # Remove JIRA markers but keep "N issues" text
+        # Pattern: "N issues [JIRA: Project]" -> keep "N issues", remove "[JIRA: Project]"
+        text_for_word_count = re.sub(
+            r'\[JIRA:[^\]]+\]',
+            '',
+            text_for_word_count,
+            flags=re.I
+        )
+        # Remove INCLUDE-REF markers
+        text_for_word_count = re.sub(
+            r'\[INCLUDE-REF:[^\]]+\]',
+            '',
+            text_for_word_count,
+            flags=re.I
+        )
+        # Remove PAGE-REF markers
+        text_for_word_count = re.sub(
+            r'\[PAGE-REF:[^\]]+\]',
+            '',
+            text_for_word_count,
+            flags=re.I
+        )
+
+    # Extract all words from the cleaned text
+    all_words = re.findall(r'\b\w+\b', text_for_word_count) if not is_empty else []
     total_words = len(all_words)
     
     # Classify words as meaningful, placeholder, or index
@@ -503,27 +719,39 @@ def cell_metrics(cell_text: str) -> Dict[str, Any]:
     meaningful_word_count = len(meaningful_words)
     placeholder_word_count = len(placeholder_words) + len(index_words)  # Count indices as placeholders
     
-    # Extract other metrics
+    # Extract URL links
     links = len(re.findall(r"https?://[^\s)]+", text))
+    
+    # Count macro references as links (they're references to external content)
+    links += macro_references
+    
     images = len(re.findall(r"\b\S+\.(png|jpg|jpeg|gif|svg|bmp|webp)\b", text, re.I))
     files = len(re.findall(r"\b\S+\.(pdf|docx?|xlsx?|csv|pptx?)\b", text, re.I))
     mention_count, mentions = count_mentions_in_text(text)
+    date_count, dates = detect_dates(text)
+
+    # Dates are considered meaningful content - add to meaningful word count
+    # Each date detected counts as 1 meaningful "word" for content richness
+    meaningful_word_count_with_dates = meaningful_word_count + date_count
 
     return {
         "text": text,
         "words": total_words,
-        "meaningful_words": meaningful_word_count,
+        "meaningful_words": meaningful_word_count_with_dates,  # Now includes dates
+        "meaningful_words_excluding_dates": meaningful_word_count,  # Original count without dates
         "placeholder_words": placeholder_word_count,
         "meaningful_word_list": meaningful_words,
         "placeholder_word_list": placeholder_words,
         "index_word_list": index_words,
+        "dates": date_count,
+        "date_list": dates,
         "links": links,
         "images": images,
         "files": files,
         "mentions": mention_count,
         "mention_list": mentions,
         "empty": is_empty,
-        "has_useful_content": meaningful_word_count >= 2 or links > 0 or images > 0 or files > 0 or mention_count > 0
+        "has_useful_content": meaningful_word_count_with_dates >= 2 or links > 0 or images > 0 or files > 0 or mention_count > 0 or date_count > 0
     }
 
 
@@ -556,6 +784,7 @@ def analyze_table_content(table: List[List[str]], label_col_count: int = 1) -> D
             "images": 0,
             "files": 0,
             "mentions": 0,
+            "dates": 0,
             "empty_cell_count": 0,
             "empty_cell_coords": [],
             "empty_rows": [],
@@ -594,6 +823,7 @@ def analyze_table_content(table: List[List[str]], label_col_count: int = 1) -> D
     total_images = 0
     total_files = 0
     total_mentions = 0
+    total_dates = 0
 
     empty_cell_coords = []
     per_col_empty_counts = [0] * cols
@@ -612,6 +842,7 @@ def analyze_table_content(table: List[List[str]], label_col_count: int = 1) -> D
         row_images = 0
         row_files = 0
         row_mentions = 0
+        row_dates = 0
         row_empty_flags = []
 
         for c_idx, cell in enumerate(row):
@@ -645,6 +876,7 @@ def analyze_table_content(table: List[List[str]], label_col_count: int = 1) -> D
             total_images += cm["images"]
             total_files += cm["files"]
             total_mentions += cm["mentions"]
+            total_dates += cm["dates"]
 
             if cm["empty"]:
                 empty_cell_coords.append((r_idx, c_idx))
@@ -658,6 +890,7 @@ def analyze_table_content(table: List[List[str]], label_col_count: int = 1) -> D
             row_images += cm["images"]
             row_files += cm["files"]
             row_mentions += cm["mentions"]
+            row_dates += cm["dates"]
 
         empty_blocks = find_contiguous_empty_blocks(row_empty_flags)
 
@@ -671,6 +904,7 @@ def analyze_table_content(table: List[List[str]], label_col_count: int = 1) -> D
             "images": row_images,
             "files": row_files,
             "mentions": row_mentions,
+            "dates": row_dates,
             "empty_cell_count": sum(row_empty_flags),
             "empty_blocks": empty_blocks,
             "cell_metrics": row_metrics
@@ -705,6 +939,7 @@ def analyze_table_content(table: List[List[str]], label_col_count: int = 1) -> D
         "images": total_images,
         "files": total_files,
         "mentions": total_mentions,
+        "dates": total_dates,
         "empty_cell_count": len(empty_cell_coords),
         "empty_cell_coords": empty_cell_coords,
         "empty_rows": empty_rows,
@@ -728,8 +963,18 @@ def find_links_images(text: str) -> Dict[str, int]:
     
     mention_count, _ = count_mentions_in_text(text)
     
+    # Count URL links
+    url_links = len(re.findall(r"https?://[^\s)]+", text))
+    
+    # Count macro reference links (JIRA-REF, JIRA, INCLUDE-REF, PAGE-REF)
+    macro_links = 0
+    macro_links += len(re.findall(r'\[JIRA-REF:[^\]]+\]', text, re.I))
+    macro_links += len(re.findall(r'\[JIRA:[^\]]+\]', text, re.I))
+    macro_links += len(re.findall(r'\[INCLUDE-REF:[^\]]+\]', text, re.I))
+    macro_links += len(re.findall(r'\[PAGE-REF:[^\]]+\]', text, re.I))
+    
     return {
-        "links": len(re.findall(r"https?://[^\s)]+", text)),
+        "links": url_links + macro_links,
         "images": len(re.findall(r"\b\S+\.(png|jpg|jpeg|gif|svg|bmp|webp)\b", text, re.I)),
         "file_refs": len(re.findall(r"\b\S+\.(pdf|docx?|xlsx?|csv|pptx?)\b", text, re.I)),
         "mentions": mention_count,

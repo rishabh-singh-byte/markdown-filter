@@ -34,7 +34,7 @@ _UI_MACROS = {"info", "note", "tip", "warning", "success", "error"}
 
 # Default input file path for testing
 DEFAULT_CONFLUENCE_DATA_PATH = "/Users/rishabh.singh/Desktop/markdown_filter/filter/data/confluence_markdown.jsonl"
-DEFAULT_TEST_INDEX = 6687
+DEFAULT_TEST_INDEX = 7193
 
 
 # =============================================================================
@@ -344,14 +344,22 @@ def _table_to_markdown(table_tag: Tag) -> str:
 
     def process_cell_content(cell: Tag) -> str:
         """Process cell content with proper escaping and whitespace handling"""
-        # Try to extract date first
-        date_str = _extract_and_format_date(cell)
-        if date_str:
-            # If date found, use it (already cleaned)
-            return _escape_pipe(date_str)
+        # Check if cell contains macros first (macros have priority over dates)
+        has_macro = cell.find('ac:structured-macro') or cell.find('ac:macro')
         
-        # Otherwise process normally
-        cell_text = _node_to_markdown(cell)
+        if has_macro:
+            # Process macros normally - they may contain dates in parameters
+            cell_text = _node_to_markdown(cell)
+        else:
+            # Try to extract date if no macros present
+            date_str = _extract_and_format_date(cell)
+            if date_str:
+                # If date found, use it (already cleaned)
+                return _escape_pipe(date_str)
+            
+            # Otherwise process normally
+            cell_text = _node_to_markdown(cell)
+        
         # Preserve structure but normalize excessive whitespace
         cell_text = _clean_whitespace(cell_text, keep_newlines=False)
         # Escape pipes in cell content
@@ -517,14 +525,52 @@ def _render_macro(name: str, params: Dict[str, str], body_html: str, metadata: D
             return f"[Attachment: {fname}]" if fname else "[Attachment]"
         return "[PDF]"
 
-    if n in ('include', 'include-page', 'include-page'):
-        page = params.get('page') or params.get('name') or params.get('page') or ''
-        return f"[Include page: {page}]" if page else "[Include page]"
+    if n in ('include', 'include-page', 'excerpt-include', 'excerpt'):
+        # Format as clear reference to another page
+        page = params.get('page') or params.get('name') or params.get('pageTitle') or ''
+        space = params.get('space') or params.get('spaceKey') or ''
+        
+        # Clean, readable format that clearly indicates it's a reference
+        if page and space:
+            return f"[INCLUDE-REF: {page} (Space: {space})]"
+        elif page:
+            return f"[INCLUDE-REF: {page}]"
+        elif space:
+            return f"[INCLUDE-REF: Space {space}]"
+        else:
+            return "[INCLUDE-REF]"
 
     if n in ('jira', 'jira-issues', 'jira-issue'):
-        # Show placeholder for Jira macro
-        jql = params.get('jql') or params.get('query') or ''
-        return f"[JIRA: {jql or 'issues'}]"
+        # Format as clear Jira reference with meaningful context
+        server = params.get('server') or params.get('servername') or 'System Jira'
+        jql = params.get('jqlQuery') or params.get('jql') or params.get('query') or ''
+        count = params.get('count', '').lower() == 'true'
+        
+        # Extract project name from JQL if available (more meaningful than full query)
+        project_name = ''
+        if jql:
+            # Try to extract project name from patterns like: project = "Project Name"
+            import re
+            project_match = re.search(r'project\s*=\s*["\']([^"\']+)["\']', jql, re.I)
+            if project_match:
+                project_name = project_match.group(1)
+        
+        # Format differently based on whether it's displaying count or full issues
+        # When count=true, it displays as "N issues" in Confluence
+        # When count=false/missing, it displays the full issue list
+        if count:
+            # This would display as "29 issues", "18 issues" etc. in rendered Confluence
+            indicator = "N issues"  # Placeholder for the dynamic count
+            if project_name:
+                return f"{indicator} [JIRA: {project_name}]"
+            else:
+                return f"{indicator} [JIRA: {server}]"
+        else:
+            # Full issue list reference
+            if project_name:
+                return f"[JIRA-REF: {server} - {project_name}]"
+            else:
+                return f"[JIRA-REF: {server}]"
 
     if n in ('task-list', 'tasklist'):
         soup = BeautifulSoup(body_html or "", "html.parser")
@@ -553,11 +599,20 @@ def _render_macro(name: str, params: Dict[str, str], body_html: str, metadata: D
         return f"\n> **Panel ({colour}):**\n>\n> {escaped_md}\n"
 
     if n in ('index', 'content-by-label', 'children'):
-        layout = params.get('data-layout') or params.get('layout') or 'default'
-        meta_str = ""
-        if metadata:
-            meta_str = "  <!-- " + ", ".join(f"{k}={v}" for k, v in metadata.items()) + " -->"
-        return f"[{n.upper()} macro: layout={layout}]{meta_str}"
+        # These macros display navigation/reference lists to other pages
+        # They should be treated as links/references, not as empty content
+        if n == 'children':
+            # Children macro displays a list of child pages with links
+            return "[PAGE-REF: Child pages list]"
+        elif n == 'content-by-label':
+            # Content by label shows pages with specific labels
+            labels = params.get('labels') or params.get('cql') or ''
+            if labels:
+                return f"[PAGE-REF: Pages with labels - {labels}]"
+            return "[PAGE-REF: Pages by label]"
+        else:  # index
+            # Index macro creates a table of contents with page links
+            return "[PAGE-REF: Page index]"
 
     if n in ('roadmap', 'roadmap-planner'):
         clean_params = {k: v for k, v in params.items() if len(v) < 80 and not v.startswith('%7B')}

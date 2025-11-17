@@ -17,6 +17,9 @@ from typing import Dict, Any
 # Add current directory to path to import check_markdown
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Add parent directory to path to import table_logic
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+
 from check_markdown import (
     html_to_markdown,
     extract_tables_from_markdown,
@@ -25,6 +28,8 @@ from check_markdown import (
     analyze_markdown_structure,
     summarize_document,
 )
+
+from table_logic import is_table_gibberish
 
 # =============================================================================
 #                           CONFIGURATION PARAMETERS
@@ -88,6 +93,25 @@ def collect_document_data(doc: Dict[str, Any]) -> Dict[str, Any]:
     # Since total_word_count already excludes tables, no need to subtract again
     word_count_excluding_tables = total_word_count
     
+    # Context-aware table quality decisions (for small key-value table handling)
+    # Extract all table analyses for context
+    all_table_analyses = [t["analysis"] for t in table_summaries]
+    useful_count = 0
+    gibberish_count = 0
+    
+    for idx, table_summary in enumerate(table_summaries):
+        # Use context-aware decision with optional parameters
+        is_gibberish, decision_info = is_table_gibberish(
+            table_summary["analysis"],
+            all_tables=all_table_analyses,
+            current_table_index=idx
+        )
+        
+        if is_gibberish:
+            gibberish_count += 1
+        else:
+            useful_count += 1
+    
     # Collect all data
     collected_data = {
         # Document metadata
@@ -128,9 +152,9 @@ def collect_document_data(doc: Dict[str, Any]) -> Dict[str, Any]:
         # Additional metadata
         "has_tables": len(tables) > 0,
         "has_empty_tables": any(t["analysis"].get("is_empty_table", True) for t in table_summaries) if table_summaries else False,
-        "has_useful_tables": any(t["analysis"].get("is_useful_table", False) for t in table_summaries) if table_summaries else False,
-        "useful_table_count": sum(1 for t in table_summaries if t["analysis"].get("is_useful_table", False)) if table_summaries else 0,
-        "gibberish_table_count": sum(1 for t in table_summaries if not t["analysis"].get("is_useful_table", False)) if table_summaries else 0,
+        "has_useful_tables": useful_count > 0 if table_summaries else False,
+        "useful_table_count": useful_count if table_summaries else 0,
+        "gibberish_table_count": gibberish_count if table_summaries else 0,
         "total_table_cells": sum(t["analysis"].get("total_cells", 0) for t in table_summaries) if table_summaries else 0,
         "total_filled_cells": sum(t["analysis"].get("filled_cells", 0) for t in table_summaries) if table_summaries else 0,
         "average_table_fill_percentage": (

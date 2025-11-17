@@ -30,8 +30,8 @@ from sklearn.metrics import (
 #                           CONFIGURATION PARAMETERS
 # =============================================================================
 
-DEFAULT_INPUT_FILE = "/Users/rishabh.singh/Desktop/markdown_filter/filter/results/label_studio_gibberish_results_3.jsonl"
-DEFAULT_MISPREDICTIONS_FILE = "/Users/rishabh.singh/Desktop/markdown_filter/filter/results/mispredictions.json"
+DEFAULT_INPUT_FILE = "/Users/rishabh.singh/Desktop/markdown_filter/filter/results/label_studio_gibberish_results_new.jsonl"
+DEFAULT_MISPREDICTIONS_FILE = "/Users/rishabh.singh/Desktop/markdown_filter/filter/results/mispredictions_new_2.json"
 
 # =============================================================================
 #                           DATA LOADING FUNCTIONS

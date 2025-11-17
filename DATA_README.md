@@ -73,7 +73,7 @@ Annotation tasks exported from Label Studio projects.
 | File | Records | Project | Description |
 |------|---------|---------|-------------|
 | `tasks_projectId_46.json` | 123 | **Confluence Page Quality v1** | Quality check version 1 |
-| `tasks_projectId_47.json` | 182 | **Meeting Notes** | Meeting notes quality check |
+| `tasks_projectId_47.json` | 182 | **Meeting Notes v4** | Meeting notes quality check (v4) |
 | `tasks_projectId_50.json` | 60 | **Confluence Page Quality v2** | Quality check version 2 |
 | `tasks_projectId_51.json` | 249 | **Confluence Page Quality v3** | Quality check version 3 |
 | **Total** | **614** | **4 projects** | Combined annotation dataset |
@@ -91,7 +91,7 @@ Enriched annotations with Confluence content merged and extracted from source da
 | `label_studio_export_v3.*` | JSONL/XLSX | 60 | v2 with Confluence data |
 | `label_studio_export_v4.*` | JSONL/XLSX | 249 | v3 with Confluence data |
 | `label_studio_combined.jsonl` | JSONL | 614 | All projects merged |
-| `label_studio_combined_processed.*` | JSONL/XLSX | 614 | **Final dataset for analysis** |
+| `label_studio_combined_processed.*` | JSONL/XLSX | 614 | **Final processed dataset for analysis** |
 
 #### Data Schema
 ```json
@@ -162,7 +162,7 @@ confluence_markdown.jsonl (10,359 pages)
            ├──────────────────────────────┐
            │                              │
            ▼                              ▼
-    Label Studio                    Full Pipeline
+    Label Studio(Ground Truth)      Full Pipeline
     ────────────                    ─────────────
     • 614 pages selected            • HTML → Markdown
     • 2-3 annotators each           • Table and other data extraction 
@@ -241,9 +241,9 @@ grep "specific-page-url" filter/data/confluence_markdown.jsonl
 | Version | Date | Project | Records | Description |
 |---------|------|---------|---------|-------------|
 | v1 | Nov 2024 | Page Quality v1 | 123 | Initial quality annotations |
-| v2 | Dec 2024 | Meeting Notes | 182 | Meeting notes focus |
-| v3 | Jan 2025 | Page Quality v2 | 60 | Second validation round |
-| v4 | Jan 2025 | Page Quality v3 | 249 | Final comprehensive set |
+| v4 | Dec 2024 | Meeting Notes v4 | 182 | Meeting notes focus |
+| v2 | Jan 2025 | Page Quality v2 | 60 | Second validation round |
+| v3 | Jan 2025 | Page Quality v3 | 249 | Final comprehensive set |
 | **Combined** | Jan 2025 | **All Projects** | **614** | **Complete dataset** |
 
 ---

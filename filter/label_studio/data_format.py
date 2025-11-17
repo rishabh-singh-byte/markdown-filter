@@ -18,8 +18,6 @@ import time
 import sys
 import json
 import re
-import requests
-from bs4 import BeautifulSoup
 from typing import List, Dict, Any, Optional
 from urllib.parse import urlparse
 from pathlib import Path

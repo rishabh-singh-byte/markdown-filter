@@ -2,7 +2,7 @@
 Page Gibberish Decider
 =======================
 Page-level analysis to determine if a Confluence page is useful or gibberish.
-Uses table analysis from table_decider.py and content metrics from collect.py.
+Uses table analysis from table_logic.py and content metrics from collect.py.
 """
 
 # =============================================================================
@@ -11,17 +11,22 @@ Uses table analysis from table_decider.py and content metrics from collect.py.
 
 import json
 import sys
-from collect import collect_document_data
-from table_decider import is_table_gibberish
+import os
+
+# Add parent directory to path to import table_logic
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+
+from filter.main.collect import collect_document_data
+from table_logic import is_table_gibberish
 
 # =============================================================================
 #                           CONFIGURATION PARAMETERS
 # =============================================================================
 
 DEFAULT_DATA_FILE = "/Users/rishabh.singh/Desktop/markdown_filter/filter/data/confluence_markdown.jsonl"
-DEFAULT_TEST_INDEX = 100
-DEFAULT_TEST_PAGE_ID = 2198077443
-WORDS_OUTSIDE_TABLES_THRESHOLD = 20
+DEFAULT_TEST_INDEX = 6933
+# DEFAULT_TEST_PAGE_ID = 2198077443
+WORDS_OUTSIDE_TABLES_THRESHOLD = 30
 
 # =============================================================================
 #                           CORE FUNCTIONS
@@ -141,7 +146,7 @@ def main():
     else:
         dump_file_name = DEFAULT_DATA_FILE
         index = DEFAULT_TEST_INDEX
-        page_id = DEFAULT_TEST_PAGE_ID
+        # page_id = DEFAULT_TEST_PAGE_ID
 
     with open(dump_file_name, "r", encoding="utf-8") as f:
         for line_number, line in enumerate(f):
@@ -190,12 +195,25 @@ def main():
                 print(f"📋 TABLE DETAILS ({len(tables)} table(s))")
                 print(f"{'='*80}\n")
                 
-                for table in tables:
+                # Extract all table analyses for context-aware processing
+                all_table_analyses = [table.get('analysis', {}) for table in tables]
+                
+                for idx, table in enumerate(tables):
                     table_index = table.get('table_index')
-                    is_gibberish, decision_info = is_table_gibberish(table.get('analysis', {}))
+                    # Use context-aware decision for small key-value table handling
+                    # Pass optional context parameters to is_table_gibberish()
+                    is_gibberish, decision_info = is_table_gibberish(
+                        table.get('analysis', {}),
+                        all_tables=all_table_analyses,
+                        current_table_index=idx
+                    )
                     status = "❌ Gibberish" if is_gibberish else "✅ Useful"
                     
-                    print(f"Table {table_index} is {status}")
+                    # Show if this is a small key-value table
+                    is_small_kv = decision_info.get('is_small_key_value', False)
+                    kv_marker = " [Small KV ≤4 rows]" if is_small_kv else ""
+                    
+                    print(f"Table {table_index} is {status}{kv_marker}")
                     print(f"  Decision: {decision_info['reason']}")
                     print(f"  Metrics:")
                     print(f"    • Meaningful Words: {decision_info['meaningful_words']} (excl. headings & placeholders)")

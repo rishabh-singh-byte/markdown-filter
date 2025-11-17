@@ -9,10 +9,14 @@ Tests page and table gibberish detection on a specific document by page ID and U
 # =============================================================================
 
 import json
-import sys 
+import sys
+import os
+
+# Add parent directory to path to import table_logic
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 from page_decider import is_page_gibberish
-from table_decider import is_table_gibberish
+from table_logic import is_table_gibberish
 from collect import collect_document_data
 
 # =============================================================================

@@ -1,0 +1,116 @@
+indexes and urls to some important decider pages with brief logics 
+
+index : url (logic, result)
+206 : https://simpplr.atlassian.net/wiki/spaces/~960219134/pages/2197782886/Decision  (emoticons and placeholders, can't decide)
+241 : https://simpplr.atlassian.net/wiki/spaces/~51975855/pages/2204008796/Product+requirements  (emoticons and placeholders, can't decide)
+251 : https://simpplr.atlassian.net/wiki/spaces/~888492470/pages/2204401896/Decision   (emoticons and placeholders)
+252 : https://simpplr.atlassian.net/wiki/spaces/~888492470/pages/2204401903/Product+requirements  (all tables empty with key value, is gibberish)
+2900 : https://simpplr.atlassian.net/wiki/spaces/AI/pages/2263711793/Access+Account+Ac.+Permissions+-+Tools+Environments  (name and emoticons with yes/no, can't decide)
+1349 : https://simpplr.atlassian.net/wiki/spaces/EN/pages/2673678429/Testing+Channels+Listing+by+client  (only few cells flled, can be useful)
+1254 : https://simpplr.atlassian.net/wiki/spaces/AI/pages/2660106353/App+Analytics+-+Social+interaction   (only 1st column filled, gibberish)
+1255 : https://simpplr.atlassian.net/wiki/spaces/AI/pages/2660106379/Page+Analytics  (gibberish)
+9484 : https://simpplr.atlassian.net/wiki/spaces/PB/pages/2772599053/Tangerine+scope+for+People+team+Tango    (gibberish)
+https://simpplr.atlassian.net/wiki/spaces/TD/pages/2807070797/Zeus+Incremental+Ingestion       (gibberish)
+https://simpplr.atlassian.net/wiki/spaces/PB/pages/3323330575/New+European+languages        (gibberish)
+https://simpplr.atlassian.net/wiki/spaces/TC/pages/3266576389/MS+Teams+Bot+and+App+Detail   (gibberish)
+https://simpplr.atlassian.net/wiki/spaces/AI/pages/2660139259/Site+Analytics                (gibberish)
+6791 : https://simpplr.atlassian.net/wiki/spaces/SOCKCEDN/pages/2694221516/Sprint+17+IT   (1 column empty, 1st useful 2nd gibberish)
+https://simpplr.atlassian.net/wiki/spaces/CIE/pages/2694450021/Sprint+1+Testing   (1 column in mid filled, gibberish)
+https://simpplr.atlassian.net/wiki/spaces/EN/pages/2673678454/QABot+support+channels  (only 1st column 2 rows filled, gibberish)
+https://simpplr.atlassian.net/wiki/spaces/PB/pages/3323330575/New+European+languages (only heading, gibberish)
+https://simpplr.atlassian.net/wiki/spaces/AI/pages/2660139259/Site+Analytics  (only 1st col, gibberish)
+https://simpplr.atlassian.net/wiki/spaces/CIE/pages/2694456601/Knowledge+Graph   (fully empty table, gibberish)
+https://simpplr.atlassian.net/wiki/spaces/OPS/pages/2693924519/Customer+Accessing+Services  (middle rows filled with yes/no, can't decide)
+https://simpplr.atlassian.net/wiki/spaces/AI/pages/2895937637/Newsletter+Analytics  (fully empty, no heading,  gibberish)
+https://simpplr.atlassian.net/wiki/spaces/~62e0d6845b8cc57412052981/pages/2425749563/Test  (fully empty, gibberish)
+6687 : https://simpplr.atlassian.net/wiki/spaces/OPS/pages/2693925455/2021+-+Release+Cycle+Dates   (fully filled with date in all column, useful)
+100 : https://simpplr.atlassian.net/wiki/spaces/~843093196/pages/2083750068/Product+requirements    (all empty tables, gibberish)
+4543 : https://simpplr.atlassian.net/wiki/spaces/PO/pages/2801729537/Beta+24.2+Sprint+2+Retrospective      (only key value filled, rest empty, gibberish)
+https://simpplr.atlassian.net/wiki/spaces/PO/pages/2247786580/Working+Agreements+for+Mobile+Team+-+DOD+and+DOR  (useful marked as gibberish)
+
+2588 : https://simpplr.atlassian.net/wiki/spaces/~61e998aa6b1ad90069cdc9af/pages/2245460259/Meeting+notes  (meeting notes, gibberish)
+https://simpplr.atlassian.net/wiki/spaces/~557058b4efc6c821fd42df8692770970af9af1/pages/2245460537/Meeting+notes  (gibberish)
+
+876 : https://simpplr.atlassian.net/wiki/spaces/PO/pages/2935586850/ITBA+BizApps+Jira+Reports  (linked words(jql query called to show count from teh referenced page, dynamic content), useful)
+https://simpplr.atlassian.net/wiki/spaces/PB/pages/2487452553/Smart+People+Search   (a small paragraph words > 30, giberish)
+https://simpplr.atlassian.net/wiki/spaces/PO/pages/2247786580/Working+Agreements+for+Mobile+Team+-+DOD+and+DOR  (only list unordered, useful)
+6933 : https://simpplr.atlassian.net/wiki/spaces/PS/pages/2698249944/Edge+cases  
+
+#####################  AMBIGUOUS  ####################
+1154 : https://simpplr.atlassian.net/wiki/spaces/TC/pages/2490172333/Charlie+feature+flags  (useful marked as gibberish, ambiguous(most chances of gibberish))
+6182 : https://simpplr.atlassian.net/wiki/spaces/PO/pages/3204120615/Roles+and+Permissions+24.10+Sprint+1+Retro (predicted gibberish)
+141 : https://simpplr.atlassian.net/wiki/spaces/SA/pages/2169307280/Issues+Stratergy
+681 : https://simpplr.atlassian.net/wiki/spaces/CIE/pages/2694453320/Common+Logic
+1350* : https://simpplr.atlassian.net/wiki/spaces/EN/pages/2673678454/QABot+support+channels
+1306 : https://simpplr.atlassian.net/wiki/spaces/EN/pages/2673672314/Twilio+phone+numbers
+
+
+#################  Meeting notes  #####################
+index : URLs
+2588 : https://simpplr.atlassian.net/wiki/spaces/~61e998aa6b1ad90069cdc9af/pages/2245460259/Meeting+notes
+2592 : https://simpplr.atlassian.net/wiki/spaces/~557058b4efc6c821fd42df8692770970af9af1/pages/2245460537/Meeting+notes
+6943 : https://simpplr.atlassian.net/wiki/spaces/~63183e08b433b060db570da3/pages/2325053527/Meeting+notes
+6971 : https://simpplr.atlassian.net/wiki/spaces/~63183e094fbe9c4bd0ef3f61/pages/2329084002/Meeting+notes
+6987 : https://simpplr.atlassian.net/wiki/spaces/~632a009af568615bdc7b2527/pages/2330788777/Meeting+notes
+7013 : https://simpplr.atlassian.net/wiki/spaces/~557058d92b640c440f4ce1879f56674127f0b3/pages/2335769025/Meeting+notes
+7038 : https://simpplr.atlassian.net/wiki/spaces/~63352918409249995eea732e/pages/2340552949/Meeting+notes
+7064 : https://simpplr.atlassian.net/wiki/spaces/~63468dc3b391eab61f721cb4/pages/2344354299/Meeting+notes
+7071 : https://simpplr.atlassian.net/wiki/spaces/~6346762425e69efe13015332/pages/2344419781/Meeting+notes
+7085 : https://simpplr.atlassian.net/wiki/spaces/~633a71e461dbef2805c10709/pages/2346221817/Meeting+notes
+7100 : https://simpplr.atlassian.net/wiki/spaces/~634f950759c794184bc8403f/pages/2349302064/Meeting+notes
+7137 : https://simpplr.atlassian.net/wiki/spaces/~636205dbd66d8108a1255c11/pages/2358837536/Meeting+notes
+7145 : https://simpplr.atlassian.net/wiki/spaces/~627a193e9bb660006994c14e/pages/2359460645/Meeting+notes
+7151 : https://simpplr.atlassian.net/wiki/spaces/~6356fdd601c2ff842c17c487/pages/2361459121/Meeting+notes
+7193 : https://simpplr.atlassian.net/wiki/spaces/Zulu/pages/2368570486/Weekly+meeting+notes
+7213 : https://simpplr.atlassian.net/wiki/spaces/~62c7c2f29763a5e60270bc86/pages/2288976281/Meeting+notes
+7279 : https://simpplr.atlassian.net/wiki/spaces/~62d7dc2d87656f8eda050415/pages/2296512753/Meeting+notes
+7326 : https://simpplr.atlassian.net/wiki/spaces/~62e0d6845b8cc57412052981/pages/2303131964/Meeting+notes
+7334 : https://simpplr.atlassian.net/wiki/spaces/~62eb9fafc1b3a10ac3aa9199/pages/2303951139/Meeting+notes
+7344 : https://simpplr.atlassian.net/wiki/spaces/~62eba2e048e310e67296137b/pages/2304966953/Meeting+notes
+7368 : https://simpplr.atlassian.net/wiki/spaces/~62f201233cc20c06c8b07686/pages/2309980282/Meeting+notes
+7372 : https://simpplr.atlassian.net/wiki/spaces/~62f5f786c1b3a10ac3acf3bf/pages/2310078537/Meeting+notes
+7383 : https://simpplr.atlassian.net/wiki/spaces/~62fdef038cdffa3a9a2a8663/pages/2311946588/Meeting+notes
+7395 : https://simpplr.atlassian.net/wiki/spaces/~62f2335bf15eecaf500fad44/pages/2313715888/Meeting+notes
+7418 : https://simpplr.atlassian.net/wiki/spaces/~606b8672b845ed006e9c151b/pages/2315911663/Meeting+notes
+7433 : https://simpplr.atlassian.net/wiki/spaces/~60ec93edcc1f700071f71128/pages/2318926563/Meeting+notes
+7441 : https://simpplr.atlassian.net/wiki/spaces/~6303d1d755513d8d731018e0/pages/2321023049/Meeting+notes
+7446 : https://simpplr.atlassian.net/wiki/spaces/~63086bf7d9ee44906b0f186d/pages/2322497772/Meeting+notes
+7454 : https://simpplr.atlassian.net/wiki/spaces/~6310e92cea661fd37d4f1fba/pages/2323808653/Meeting+notes
+7686 : https://simpplr.atlassian.net/wiki/spaces/TD/pages/2495119827/Template+-+Meeting+notes
+7712 : https://simpplr.atlassian.net/wiki/spaces/~620b5b038c763e0068d122da/pages/2264465654/Meeting+notes
+7728 : https://simpplr.atlassian.net/wiki/spaces/~6287ccdcc217e200698f1bd3/pages/2267088123/Meeting+notes
+7747 : https://simpplr.atlassian.net/wiki/spaces/~62147f8cba649b006aac13fa/pages/2267578934/Meeting+notes
+7789 : https://simpplr.atlassian.net/wiki/spaces/~61633016198b4f0068be526a/pages/2270888727/Meeting+notes
+7813 : https://simpplr.atlassian.net/wiki/spaces/~629790231648f20069629296/pages/2272199943/Meeting+notes
+7828 : https://simpplr.atlassian.net/wiki/spaces/~61375b9f83d2ad006a61211e/pages/2272690895/Meeting+notes
+7866 : https://simpplr.atlassian.net/wiki/spaces/~60845d73a41c7a0078a12472/pages/2276622699/Meeting+notes
+7869 : https://simpplr.atlassian.net/wiki/spaces/~5e191cb462aed90daa49b30d/pages/2276884559/Meeting+notes
+7923 : https://simpplr.atlassian.net/wiki/spaces/~62a394329f5d480069cb6180/pages/2281275950/Meeting+notes
+7941 : https://simpplr.atlassian.net/wiki/spaces/~5570587e43171c2ff34f369104ab6d34146093/pages/2283536446/Meeting+notes
+7961 : https://simpplr.atlassian.net/wiki/spaces/~60e5c2a42d49fd00697bc06b/pages/2285666568/Meeting+notes
+8071 : https://simpplr.atlassian.net/wiki/spaces/SA/pages/2623701004/Meeting+notes+Sep+27
+8202 : https://simpplr.atlassian.net/wiki/spaces/SA/pages/2646835584/Meeting+Notes+Oct+25
+8373 : https://simpplr.atlassian.net/wiki/spaces/TD/pages/2681242032/Meeting+notes+in+space
+8417 : https://simpplr.atlassian.net/wiki/spaces/TB/pages/2691137677/Migration+meeting+notes
+8419 : https://simpplr.atlassian.net/wiki/spaces/SA/pages/2691432478/Meeting+Notes+Dec+6
+8443 : https://simpplr.atlassian.net/wiki/spaces/OPS/pages/2693923557/DEV-OPS-SEC+meeting+notes
+8629 : https://simpplr.atlassian.net/wiki/spaces/EN/pages/2673685570/Engineering+and+Operations+Meeting+Notes
+8788 : https://simpplr.atlassian.net/wiki/spaces/~638e45ec3e79f12e57250874/pages/2384659118/Meeting+notes
+8796 : https://simpplr.atlassian.net/wiki/spaces/~639a0c8777c9c3a008b951d3/pages/2387378417/Meeting+notes
+8825 : https://simpplr.atlassian.net/wiki/spaces/~63abd4d17cde7bff9d789ed8/pages/2394456963/Meeting+notes
+8830 : https://simpplr.atlassian.net/wiki/spaces/~60c7d0e6f6505400699d117d/pages/2395340856/Meeting+notes
+8843 : https://simpplr.atlassian.net/wiki/spaces/~63ac61a4082abdd71bb52e24/pages/2399502735/Meeting+notes
+8856 : https://simpplr.atlassian.net/wiki/spaces/~63b85e3b082abdd71bb77c00/pages/2403795186/Meeting+notes
+8879 : https://simpplr.atlassian.net/wiki/spaces/~63bf862eeac4f07e3f3bfe86/pages/2410971617/Meeting+notes
+8933 : https://simpplr.atlassian.net/wiki/spaces/~63d83b9386a66a7cc7a50d19/pages/2431877430/Meeting+notes
+9294 : https://simpplr.atlassian.net/wiki/spaces/SA/pages/2707685529/Meeting+Notes+-+Dec.19
+9485 : https://simpplr.atlassian.net/wiki/spaces/SA/pages/2772828175/Meeting+notes+Feb+6
+9822 : https://simpplr.atlassian.net/wiki/spaces/SDA/pages/2913273184/Template+-+Meeting+notes
+10091 : https://simpplr.atlassian.net/wiki/spaces/ABS/pages/3084812809/Template+-+Meeting+notes
+10094 : https://simpplr.atlassian.net/wiki/spaces/INT/pages/3084911115/Template+-+Meeting+notes
+
+
+
+
+
+

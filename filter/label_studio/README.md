@@ -154,8 +154,8 @@ python data_format.py
 ```
 
 **Output:**
-- `label_studio_export_v4.xlsx` - Complete dataset
-- `label_studio_export_v4.jsonl` - JSONL format
+- `label_studio_export_vX.xlsx` - particular project dataset (excel format)
+- `label_studio_export_vX.jsonl` - (JSONL format)
 
 ---
 
@@ -223,18 +223,6 @@ Complete dataset with columns:
   "lookup_status": "found"
 }
 ```
-
----
-
-## Performance
-
-| Metric | Value |
-|--------|-------|
-| Cache load time | ~2-5 seconds (20K+ pages) |
-| Lookup speed | O(1) constant time |
-| Throughput | ~10,000 lookups/second |
-| Network required | No (cached data) |
-| Rate limits | None |
 
 ---
 
