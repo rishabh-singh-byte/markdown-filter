@@ -31,29 +31,29 @@ The system employs a **hierarchical, priority-based decision framework** that ev
 ### Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    CONFLUENCE HTML INPUT                        │
-│                 (confluence_markdown.jsonl)                     │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-                             ▼
-                    HTML → Markdown Conversion
-                    (Preserves structure & content)
-                             │
-                             ▼
-                    Document Analysis & Metrics
-                    (Tables, words, links, images)
-                             │
-                             ▼
-              ┌──────────────┴──────────────┐
-              ▼                             ▼
-      Table-Level Analysis          Page-Level Analysis
-      (Priority-Based System)       (Content Aggregation)
-              │                             │
-              └──────────────┬──────────────┘
-                             ▼
-                      FINAL DECISION
-                    (USEFUL / GIBBERISH)
+                ┌─────────────────────────────────────────────────────────────────┐
+                │                    CONFLUENCE HTML INPUT                        │
+                │                 (confluence_markdown.jsonl)                     │
+                └────────────────────────────┬────────────────────────────────────┘
+                                             │
+                                             ▼
+                                    HTML → Markdown Conversion
+                                    (Preserves structure & content)
+                                             │
+                                             ▼
+                                    Document Analysis & Metrics
+                                    (Tables, words, links, images)
+                                             │
+                                             ▼
+                              ┌──────────────┴──────────────┐
+                              ▼                             ▼
+                      Table-Level Analysis          Page-Level Analysis
+                      (Priority-Based System)       (Content Aggregation)
+                              │                             │
+                              └──────────────┬──────────────┘
+                                             ▼
+                                      FINAL DECISION
+                                    (USEFUL / GIBBERISH)
 ```
 
 ### Decision Logic
@@ -342,9 +342,8 @@ Recall:
 F1-Score: 82.7%
 
 Confusion Matrix:
-              Predicted
               Gibberish  Useful
-Actual  Gibberish   365     33
+     Gibberish      365     33
         Useful       48    168
 ```
 
@@ -651,7 +650,6 @@ To contribute improvements:
 1. **Test Changes**: Use `page_decider.py` on multiple test indices
 2. **Validate Metrics**: Run `metrics.py` to ensure accuracy isn't degraded
 3. **Document Reasoning**: Update this README with design decisions
-4. **Add Tests**: Include example pages for regression testing
 
 ---
 
@@ -664,66 +662,6 @@ To contribute improvements:
 - **Recall (Gibberish)**: 91.2%
 
 ---
-
-## 🐛 Troubleshooting
-
-### Issue: "ModuleNotFoundError: No module named 'filter.main.collect'"
-
-**Solution:**
-```bash
-# Ensure you're running from project root
-cd /Users/rishabh.singh/Desktop/markdown_filter
-python filter/main/page_decider.py
-```
-
-### Issue: "FileNotFoundError: confluence_markdown.jsonl"
-
-**Solution:**
-```bash
-# Check data file path in script configuration
-# Verify file exists:
-ls filter/data/confluence_markdown.jsonl
-```
-
-### Issue: "Empty Analysis - No tables found"
-
-**Solution:**
-- Verify the document at the test index contains `<table>` tags
-- Try a different test index (0-10358)
-- Check if HTML conversion is working: `python filter/main/conversion3.py`
-
-### Issue: Metrics calculation fails
-
-**Solution:**
-```bash
-# Ensure batch processing completed successfully
-wc -l filter/results/label_studio_gibberish_results_3.jsonl
-# Should output: 614
-
-# Verify annotations file exists
-ls filter/label_studio/fetch_tasks/label_studio_combined_processed.jsonl
-```
-
----
-
-## 📄 License
-
-Internal tool for Confluence documentation quality analysis.
-
----
-
-## 👥 Authors & Acknowledgments
-
-**Project Team**: Internal Documentation Engineering Team
-
-**Data Source**: Confluence instance with 10,359 pages  
-**Annotations**: Label Studio with 614 human-annotated pages (4 annotation projects)
-
----
-
-## 📞 Support & Contact
-
-For issues, questions, or suggestions:
 
 1. Check this README and sub-documentation
 2. Review example outputs in `filter/main/README.md`

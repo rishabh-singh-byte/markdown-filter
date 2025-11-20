@@ -157,23 +157,23 @@ Model predictions and error analysis on annotated data.
 ## 📈 Data Flow
 
 ```
-confluence_markdown.jsonl (10,359 pages)
-           │
-           ├──────────────────────────────┐
-           │                              │
-           ▼                              ▼
-    Label Studio(Ground Truth)      Full Pipeline
-    ────────────                    ─────────────
-    • 614 pages selected            • HTML → Markdown
-    • 2-3 annotators each           • Table and other data extraction 
-    • Merged with source            • Content analysis
-    • Ground truth labels           • Gibberish detection
-           │                              │
-           └──────────┬───────────────────┘
-                      ▼
-              Model Predictions
-              ─────────────────
-              • Results (614)
+                confluence_markdown.jsonl (10,359 pages)
+                          │
+                          ├──────────────────────────────┐
+                          │                              │
+                          ▼                              ▼
+                    Label Studio(Ground Truth)      Full Pipeline
+                    ────────────                    ─────────────
+                    • 614 pages selected            • HTML → Markdown
+                    • 2-3 annotators each           • Table and other data extraction 
+                    • Merged with source            • Content analysis
+                    • Ground truth labels           • Gibberish detection
+                          │                              │
+                          └──────────┬───────────────────┘
+                                      ▼
+                              Model Predictions
+                              ─────────────────
+                              • Results (614)
 
 ```
 

@@ -1,4 +1,4 @@
-indexes and urls to some important decider pages with brief logics 
+indexs and urls to some important decider pages with brief logics 
 
 index : url (logic, result)
 206 : https://simpplr.atlassian.net/wiki/spaces/~960219134/pages/2197782886/Decision  (emoticons and placeholders, can't decide)
