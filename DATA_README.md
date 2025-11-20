@@ -254,8 +254,6 @@ grep "specific-page-url" filter/data/confluence_markdown.jsonl
 - **[Label Studio Integration](filter/label_studio/README.md)** - Annotation process
 - **[HTML Converter](filter/main/conversion3.py)** - Confluence to Markdown
 
----
-
-**Last Updated:** January 6, 2025  
+--- 
 **Total Data**: 10,359 source pages, 614 annotated
 
