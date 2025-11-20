@@ -24,7 +24,7 @@ from collect import collect_document_data
 # =============================================================================
 
 DEFAULT_INPUT_FILE = "/Users/rishabh.singh/Desktop/markdown_filter/filter/label_studio/fetch_tasks/label_studio_combined_processed.jsonl"
-DEFAULT_OUTPUT_FILE = "/Users/rishabh.singh/Desktop/markdown_filter/filter/results/label_studio_gibberish_results_new_2.jsonl"
+DEFAULT_OUTPUT_FILE = "/Users/rishabh.singh/Desktop/markdown_filter/filter/results/label_studio_gibberish_results_new_3.jsonl"
 DEFAULT_BATCH_SIZE = 10
 
 # =============================================================================

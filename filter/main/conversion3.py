@@ -34,7 +34,7 @@ _UI_MACROS = {"info", "note", "tip", "warning", "success", "error"}
 
 # Default input file path for testing
 DEFAULT_CONFLUENCE_DATA_PATH = "/Users/rishabh.singh/Desktop/markdown_filter/filter/data/confluence_markdown.jsonl"
-DEFAULT_TEST_INDEX = 7193
+DEFAULT_TEST_INDEX = 1154
 
 
 # =============================================================================
@@ -183,6 +183,54 @@ def _node_to_markdown(node, list_level: int = 0) -> str:
     # Skip ac:placeholder - these are editor hints, not visible content
     if name == 'ac:placeholder':
         return ""
+    
+    # Skip span.text-placeholder - these are instructional placeholder text
+    if name == 'span':
+        classes = node.get('class', [])
+        # Filter out all types of placeholder spans
+        if 'text-placeholder' in classes or 'placeholder-inline-tasks' in classes:
+            return ""
+
+    # Handle ac:task-list and ac:task tags (when inside table cells or other elements)
+    if name == 'ac:task-list':
+        tasks_md = []
+        for task in node.find_all('ac:task'):
+            status = task.find('ac:task-status')
+            body = task.find('ac:task-body')
+            
+            # Check if body only contains placeholder
+            if body:
+                # Remove placeholder elements before getting text
+                body_copy = BeautifulSoup(str(body), "html.parser")
+                for placeholder in body_copy.find_all('ac:placeholder'):
+                    placeholder.decompose()
+                text = _clean_whitespace(body_copy.get_text(" ", strip=True))
+            else:
+                text = ''
+            
+            # Skip empty tasks (no real content, only placeholders)
+            if not text:
+                continue
+            
+            checked = (status and status.get_text(strip=True).lower() == 'complete')
+            checkbox = "[x]" if checked else "[ ]"
+            tasks_md.append(f"- {checkbox} {text}")
+        
+        return "\n".join(tasks_md) + "\n" if tasks_md else ""
+    
+    # Handle ac:adf-extension tags (decision lists, etc.)
+    if name == 'ac:adf-extension':
+        # ADF extensions are placeholder content for decision lists, etc.
+        # Check if there's real content (not just placeholders)
+        content_copy = BeautifulSoup(str(node), "html.parser")
+        for placeholder in content_copy.find_all('ac:placeholder'):
+            placeholder.decompose()
+        # Remove ADF metadata attributes (local-id, state, etc.)
+        for adf_attr in content_copy.find_all('ac:adf-attribute'):
+            adf_attr.decompose()
+        text = _clean_whitespace(content_copy.get_text(" ", strip=True))
+        # If only placeholders, return empty
+        return "" if not text else f"[ADF-CONTENT: {text[:50]}...]"
 
     # Handle structured macros and ac:macro directly
     if name in ('ac:structured-macro', 'ac:macro'):

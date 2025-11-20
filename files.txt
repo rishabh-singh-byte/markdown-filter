@@ -26,14 +26,14 @@ https://simpplr.atlassian.net/wiki/spaces/~62e0d6845b8cc57412052981/pages/242574
 6687 : https://simpplr.atlassian.net/wiki/spaces/OPS/pages/2693925455/2021+-+Release+Cycle+Dates   (fully filled with date in all column, useful)
 100 : https://simpplr.atlassian.net/wiki/spaces/~843093196/pages/2083750068/Product+requirements    (all empty tables, gibberish)
 4543 : https://simpplr.atlassian.net/wiki/spaces/PO/pages/2801729537/Beta+24.2+Sprint+2+Retrospective      (only key value filled, rest empty, gibberish)
-https://simpplr.atlassian.net/wiki/spaces/PO/pages/2247786580/Working+Agreements+for+Mobile+Team+-+DOD+and+DOR  (useful marked as gibberish)
+5939 : https://simpplr.atlassian.net/wiki/spaces/PO/pages/2247786580/Working+Agreements+for+Mobile+Team+-+DOD+and+DOR  (useful marked as gibberish)
 
 2588 : https://simpplr.atlassian.net/wiki/spaces/~61e998aa6b1ad90069cdc9af/pages/2245460259/Meeting+notes  (meeting notes, gibberish)
 https://simpplr.atlassian.net/wiki/spaces/~557058b4efc6c821fd42df8692770970af9af1/pages/2245460537/Meeting+notes  (gibberish)
 
 876 : https://simpplr.atlassian.net/wiki/spaces/PO/pages/2935586850/ITBA+BizApps+Jira+Reports  (linked words(jql query called to show count from teh referenced page, dynamic content), useful)
 https://simpplr.atlassian.net/wiki/spaces/PB/pages/2487452553/Smart+People+Search   (a small paragraph words > 30, giberish)
-https://simpplr.atlassian.net/wiki/spaces/PO/pages/2247786580/Working+Agreements+for+Mobile+Team+-+DOD+and+DOR  (only list unordered, useful)
+5939 : https://simpplr.atlassian.net/wiki/spaces/PO/pages/2247786580/Working+Agreements+for+Mobile+Team+-+DOD+and+DOR  (only list unordered, useful)
 6933 : https://simpplr.atlassian.net/wiki/spaces/PS/pages/2698249944/Edge+cases  
 
 #####################  AMBIGUOUS  ####################
@@ -42,7 +42,11 @@ https://simpplr.atlassian.net/wiki/spaces/PO/pages/2247786580/Working+Agreements
 141 : https://simpplr.atlassian.net/wiki/spaces/SA/pages/2169307280/Issues+Stratergy
 681 : https://simpplr.atlassian.net/wiki/spaces/CIE/pages/2694453320/Common+Logic
 1350* : https://simpplr.atlassian.net/wiki/spaces/EN/pages/2673678454/QABot+support+channels
-1306 : https://simpplr.atlassian.net/wiki/spaces/EN/pages/2673672314/Twilio+phone+numbers
+1306 : https://simpplr.atlassian.net/wiki/spaces/EN/pages/2673672314/Twilio+phone+numbers        ########
+8466 : https://simpplr.atlassian.net/wiki/spaces/OPS/pages/2693924519/Customer+Accessing+Services
+6255 : https://simpplr.atlassian.net/wiki/spaces/TC/pages/3266576389/MS+Teams+Bot+and+App+Detail
+5939 : https://simpplr.atlassian.net/wiki/spaces/PO/pages/2247786580/Working+Agreements+for+Mobile+Team+-+DOD+and+DOR
+
 
 
 #################  Meeting notes  #####################

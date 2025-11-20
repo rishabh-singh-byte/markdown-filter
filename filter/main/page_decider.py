@@ -24,7 +24,7 @@ from table_logic import is_table_gibberish
 # =============================================================================
 
 DEFAULT_DATA_FILE = "/Users/rishabh.singh/Desktop/markdown_filter/filter/data/confluence_markdown.jsonl"
-DEFAULT_TEST_INDEX = 6933
+DEFAULT_TEST_INDEX = 7941 
 # DEFAULT_TEST_PAGE_ID = 2198077443
 WORDS_OUTSIDE_TABLES_THRESHOLD = 30
 

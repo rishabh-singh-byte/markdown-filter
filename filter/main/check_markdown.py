@@ -11,7 +11,7 @@ This script uses conversion3.py for HTML to Markdown conversion.
 #                           IMPORTS
 # =============================================================================
 
-import json
+import json 
 import re
 import sys
 import os
@@ -446,9 +446,13 @@ def detect_table_heading(table: List[List[str]]) -> Dict[str, Any]:
     non_empty_first_row = [c for c in first_row if c.strip()]
     all_first_row_bold = len(non_empty_first_row) > 0 and all(is_bold_cell(c) for c in non_empty_first_row)
 
-    # --- Check if all non-empty cells in first column are bold ---
-    first_col = [r[0] for r in norm_table if r]
-    non_empty_first_col = [c for c in first_col if c.strip()]
+    # --- Check if all non-empty cells in first column are bold (for row headers) ---
+    # IMPORTANT: If first row is column headers, check first column starting from row 1
+    # to avoid counting the column header cell as a row header
+    first_col_full = [r[0] for r in norm_table if r]  # Full first column (for key-value/index detection)
+    first_col_start = 1 if all_first_row_bold else 0
+    first_col_for_headers = [norm_table[r][0] for r in range(first_col_start, rows) if norm_table[r]]
+    non_empty_first_col = [c for c in first_col_for_headers if c.strip()]
     all_first_col_bold = len(non_empty_first_col) > 0 and all(is_bold_cell(c) for c in non_empty_first_col)
 
     # --- SPECIAL CASE: 2-column key-value table ---
@@ -458,7 +462,7 @@ def detect_table_heading(table: List[List[str]]) -> Dict[str, Any]:
     if cols == 2 and not all_first_col_bold and not all_first_row_bold:
         # Check if first column has content and second column is mostly empty
         second_col = [r[1] if len(r) > 1 else "" for r in norm_table]
-        first_col_filled = sum(1 for c in first_col if c.strip())
+        first_col_filled = sum(1 for c in first_col_full if c.strip())
         second_col_filled = sum(1 for c in second_col if c.strip())
         
         # If first column is mostly filled and second column is mostly empty, it's key-value
@@ -1022,6 +1026,10 @@ def analyze_markdown_structure(md: str) -> Dict[str, Any]:
     # Count total words in markdown, but first remove metadata content and tables
     md_for_counting = md
     
+    # Remove heading lines FIRST (before counting words)
+    # This ensures headings are completely excluded from word count
+    md_for_counting = re.sub(r'^#{1,6}\s+.*$', '', md_for_counting, flags=re.M)
+    
     # Remove tables entirely (including headers, separators, and data)
     # Tables are lines starting with '|'
     md_for_counting = re.sub(r'^[|\s]*\|.*$', '', md_for_counting, flags=re.M)
@@ -1042,11 +1050,11 @@ def analyze_markdown_structure(md: str) -> Dict[str, Any]:
     # Remove image alt text and URLs
     md_for_counting = re.sub(r'!\[.*?\]\(.*?\)', '', md_for_counting)
     
-    # Count total words
-    total_word_count = len(re.findall(r'\b\w+\b', md_for_counting))
+    # Count words (headings already removed, so this is the word count excluding headings)
+    word_count_excluding_headings = len(re.findall(r'\b\w+\b', md_for_counting))
     
-    # Word count excluding headings
-    word_count_excluding_headings = total_word_count - heading_word_count
+    # Total word count including headings
+    total_word_count = word_count_excluding_headings + heading_word_count
 
     return {
         "word_count": word_count_excluding_headings,
