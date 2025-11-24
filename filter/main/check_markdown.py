@@ -47,40 +47,53 @@ except ImportError as e:
     CONVERSION3_AVAILABLE = False
 
 # =============================================================================
+#                           REGEX PATTERNS (CONSTANTS)
+# =============================================================================
+
+# Common regex patterns used throughout the file
+WORD_PATTERN = r"\b[\w'-]+\b"
+URL_PATTERN = r"https?://[^\s)]+"
+IMAGE_PATTERN = r"\b\S+\.(png|jpg|jpeg|gif|svg|bmp|webp)\b"
+FILE_PATTERN = r"\b\S+\.(pdf|docx?|xlsx?|csv|pptx?)\b"
+MENTION_PATTERN = r"\[~[^\]]+\]"
+MACRO_PATTERNS = {
+    'jira_ref': r'\[JIRA-REF:[^\]]+\]',
+    'jira': r'\[JIRA:[^\]]+\]',
+    'include': r'\[INCLUDE-REF:[^\]]+\]',
+    'page': r'\[PAGE-REF:[^\]]+\]',
+}
+
+# =============================================================================
 #                           UTILITY HELPER FUNCTIONS
 # =============================================================================
 
 def count_words(text: str) -> int:
     """Count words in text."""
-    if not text:
-        return 0
-    return len(re.findall(r"\b[\w'-]+\b", text))
+    return len(re.findall(WORD_PATTERN, text)) if text else 0
 
 def count_links(text: str) -> int:
     """Count links in text."""
-    if not text:
-        return 0
-    return len(re.findall(r"https?://[^\s)]+", text))
+    return len(re.findall(URL_PATTERN, text)) if text else 0
 
 def count_words_per_paragraph(text: str) -> int:
     """Count words per paragraph in text."""
-    if not text:
-        return 0
-    return len([p for p in re.split(r"\n\s*\n", text) if p.strip()])
+    return len([p for p in re.split(r"\n\s*\n", text) if p.strip()]) if text else 0
+
+def _contains_pattern(text: str, pattern: str, flags: int = 0) -> bool:
+    """Generic pattern matching helper."""
+    return bool(re.search(pattern, text, flags)) if text else False
 
 def contains_url(text: str) -> bool:
     """Check if text contains URL."""
-    if not text:
-        return False
-    return bool(re.search(r"https?://[^\s)]+", text))
-
+    return _contains_pattern(text, URL_PATTERN)
 
 def contains_image_reference(text: str) -> bool:
     """Check if text contains image reference."""
-    if not text:
-        return False
-    return bool(re.search(r"\b\S+\.(png|jpg|jpeg|gif|svg|bmp|webp)\b", text, re.I))
+    return _contains_pattern(text, IMAGE_PATTERN, re.I)
 
+def contains_filename_like(text: str) -> bool:
+    """Check if text contains file reference."""
+    return _contains_pattern(text, FILE_PATTERN, re.I)
 
 def count_mentions(table: List[List[str]], label: str) -> Tuple[int, List[str]]:
     """
@@ -96,7 +109,7 @@ def count_mentions(table: List[List[str]], label: str) -> Tuple[int, List[str]]:
         if label == first_cell or label in first_cell:
             # Combine all other cells (sometimes data can be spread across multiple columns)
             content = " ".join(row[1:])
-            mentions = re.findall(r"\[~[^\]]+\]", content)
+            mentions = re.findall(MENTION_PATTERN, content)
             return len(mentions), mentions
 
     return 0, []
@@ -109,15 +122,8 @@ def count_mentions_in_text(text: str) -> Tuple[int, List[str]]:
     """
     if not text:
         return 0, []
-    mentions = re.findall(r"\[~[^\]]+\]", text)
+    mentions = re.findall(MENTION_PATTERN, text)
     return len(mentions), mentions
-
-
-def contains_filename_like(text: str) -> bool:
-    """Check if text contains file reference."""
-    if not text:
-        return False
-    return bool(re.search(r"\b\S+\.(pdf|docx?|xlsx?|csv|pptx?)\b", text, re.I))
 
 
 def detect_dates(text: str) -> Tuple[int, List[str]]:
@@ -138,68 +144,38 @@ def detect_dates(text: str) -> Tuple[int, List[str]]:
     if not text:
         return 0, []
     
+    # Month names pattern (reused across multiple patterns)
+    MONTH_NAMES = r'(?:January|February|March|April|May|June|July|August|September|October|November|December|' \
+                  r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)'
+    
+    # Date patterns in order of specificity
+    date_patterns = [
+        # ISO format dates (YYYY-MM-DD, YYYY/MM/DD, YYYY.MM.DD)
+        r'\b(\d{4}[-/.]\d{1,2}[-/.]\d{1,2})\b',
+        # Short format (MM/DD/YYYY, DD/MM/YYYY, MM-DD-YYYY, DD-MM-YYYY, MM.DD.YYYY)
+        r'\b(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4})\b',
+        # Written format with full month names (January 15, 2023 | Jan 15, 2023)
+        rf'\b({MONTH_NAMES}\s+\d{{1,2}}(?:st|nd|rd|th)?,?\s+\d{{4}})\b',
+        # Day Month Year format (15 January 2023, 15 Jan 2023)
+        rf'\b(\d{{1,2}}(?:st|nd|rd|th)?\s+{MONTH_NAMES}\s+\d{{4}})\b',
+        # Month Year format (January 2023, Jan 2023)
+        rf'\b({MONTH_NAMES}\s+\d{{4}})\b',
+        # Quarters (Q1 2023, Q1-2023, FY2023, FY 2023)
+        r'\b((?:Q[1-4]|FY)\s*[-]?\s*\d{4})\b',
+    ]
+    
     dates_found = []
     
-    # Pattern 1: ISO format dates (YYYY-MM-DD, YYYY/MM/DD, YYYY.MM.DD)
-    iso_dates = re.findall(
-        r'\b(\d{4}[-/.]\d{1,2}[-/.]\d{1,2})\b',
-        text
-    )
-    dates_found.extend(iso_dates)
+    # Find all dates matching patterns
+    for pattern in date_patterns:
+        matches = re.findall(pattern, text, re.IGNORECASE)
+        dates_found.extend(matches)
     
-    # Pattern 2: Short format (MM/DD/YYYY, DD/MM/YYYY, MM-DD-YYYY, DD-MM-YYYY, MM.DD.YYYY)
-    short_dates = re.findall(
-        r'\b(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4})\b',
-        text
-    )
-    dates_found.extend(short_dates)
-    
-    # Pattern 3: Written format with full month names
-    # January 15, 2023 | 15 January 2023 | Jan 15, 2023 | 15 Jan 2023
-    written_dates = re.findall(
-        r'\b((?:January|February|March|April|May|June|July|August|September|October|November|December|'
-        r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)'
-        r'\s+\d{1,2}(?:st|nd|rd|th)?,?\s+\d{4})\b',
-        text,
-        re.IGNORECASE
-    )
-    dates_found.extend(written_dates)
-    
-    # Pattern 4: Day Month Year format (15 January 2023, 15 Jan 2023)
-    day_month_year = re.findall(
-        r'\b(\d{1,2}(?:st|nd|rd|th)?\s+(?:January|February|March|April|May|June|July|August|September|October|November|December|'
-        r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+\d{4})\b',
-        text,
-        re.IGNORECASE
-    )
-    dates_found.extend(day_month_year)
-    
-    # Pattern 5: Month Year format (January 2023, Jan 2023)
-    month_year = re.findall(
-        r'\b((?:January|February|March|April|May|June|July|August|September|October|November|December|'
-        r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\s+\d{4})\b',
-        text,
-        re.IGNORECASE
-    )
-    dates_found.extend(month_year)
-    
-    # Pattern 6: Quarters (Q1 2023, Q1-2023, FY2023, FY 2023)
-    quarters = re.findall(
-        r'\b((?:Q[1-4]|FY)\s*[-]?\s*\d{4})\b',
-        text,
-        re.IGNORECASE
-    )
-    dates_found.extend(quarters)
-    
-    # Pattern 7: Standalone year (2020, 2021, 2022, 2023, 2024, etc.)
-    # Only match years between 1900-2099 to avoid false positives with other numbers
-    standalone_years = re.findall(
-        r'\b((?:19|20)\d{2})\b',
-        text
-    )
+    # Standalone year (2020, 2021, 2022, 2023, 2024, etc.)
+    # Only match years between 1900-2099 to avoid false positives
+    standalone_years = re.findall(r'\b((?:19|20)\d{2})\b', text)
     # Only count standalone years if they're not already part of another date
     for year in standalone_years:
-        # Check if this year is not already captured in another date format
         if not any(year in date for date in dates_found):
             dates_found.append(year)
     
@@ -355,20 +331,6 @@ def extract_tables_from_markdown(md: str) -> List[List[List[str]]]:
 # =============================================================================
 #                       TABLE CONTENT ANALYSIS
 # =============================================================================
-
-# def _count_contiguous_empty_blocks(row: List[str]) -> List[int]:
-#     """Count contiguous empty cell blocks in a row."""
-#     blocks, current = [], 0
-#     for c in row:
-#         if not c.strip():
-#             current += 1
-#         elif current:
-#             blocks.append(current)
-#             current = 0
-#     if current:
-#         blocks.append(current)
-#     return blocks
-
 
 def find_contiguous_empty_blocks(row_empty_flags: List[bool]) -> List[Dict[str, int]]:
     """
@@ -583,6 +545,19 @@ def detect_table_heading(table: List[List[str]]) -> Dict[str, Any]:
     }
 
 
+def _remove_macro_references(text: str) -> str:
+    """
+    Remove all macro reference markers from text while preserving meaningful display text.
+    
+    Examples:
+    - "[JIRA-REF: Project-123]" -> ""
+    - "5 issues [JIRA: PROJECT]" -> "5 issues"
+    """
+    text_cleaned = text
+    for pattern in MACRO_PATTERNS.values():
+        text_cleaned = re.sub(pattern, '', text_cleaned, flags=re.I)
+    return text_cleaned
+
 
 def cell_metrics(cell_text: str) -> Dict[str, Any]:
     """
@@ -630,73 +605,13 @@ def cell_metrics(cell_text: str) -> Dict[str, Any]:
     stripped = text.strip()
     is_empty = (len(stripped) == 0)
 
-    # Detect Confluence macro references FIRST (Jira, page links, etc.)
-    # These appear in converted markdown with clean reference format
-    macro_references = 0
-    has_macro_reference = False
-    
-    # New formats:
-    # 1. Full reference: [JIRA-REF: ...] or [INCLUDE-REF: ...] or [PAGE-REF: ...]
-    # 2. Count display: "N issues [JIRA: ...]" where N issues is visible content
-    jira_ref_pattern = r'\[JIRA-REF:[^\]]+\]'
-    jira_refs = re.findall(jira_ref_pattern, text, re.I)
-    if jira_refs:
-        macro_references += len(jira_refs)
-        has_macro_reference = True
-    
-    # JIRA count display format: "N issues [JIRA: Project]"
-    jira_count_pattern = r'\[JIRA:[^\]]+\]'
-    jira_counts = re.findall(jira_count_pattern, text, re.I)
-    if jira_counts:
-        macro_references += len(jira_counts)
-        has_macro_reference = True
-    
-    include_ref_pattern = r'\[INCLUDE-REF:[^\]]+\]'
-    include_refs = re.findall(include_ref_pattern, text, re.I)
-    if include_refs:
-        macro_references += len(include_refs)
-        has_macro_reference = True
-    
-    # PAGE-REF pattern: children, index, content-by-label macros
-    page_ref_pattern = r'\[PAGE-REF:[^\]]+\]'
-    page_refs = re.findall(page_ref_pattern, text, re.I)
-    if page_refs:
-        macro_references += len(page_refs)
-        has_macro_reference = True
+    # Detect Confluence macro references FIRST
+    macro_references = sum(len(re.findall(pattern, text, re.I)) for pattern in MACRO_PATTERNS.values())
+    has_macro_reference = macro_references > 0
     
     # For cells containing macro references, exclude the reference markers from word counting
     # but keep meaningful display text like "N issues"
-    text_for_word_count = text
-    if has_macro_reference:
-        # Remove JIRA-REF markers (full reference, no visible text)
-        text_for_word_count = re.sub(
-            r'\[JIRA-REF:[^\]]+\]',
-            '',
-            text_for_word_count,
-            flags=re.I
-        )
-        # Remove JIRA markers but keep "N issues" text
-        # Pattern: "N issues [JIRA: Project]" -> keep "N issues", remove "[JIRA: Project]"
-        text_for_word_count = re.sub(
-            r'\[JIRA:[^\]]+\]',
-            '',
-            text_for_word_count,
-            flags=re.I
-        )
-        # Remove INCLUDE-REF markers
-        text_for_word_count = re.sub(
-            r'\[INCLUDE-REF:[^\]]+\]',
-            '',
-            text_for_word_count,
-            flags=re.I
-        )
-        # Remove PAGE-REF markers
-        text_for_word_count = re.sub(
-            r'\[PAGE-REF:[^\]]+\]',
-            '',
-            text_for_word_count,
-            flags=re.I
-        )
+    text_for_word_count = _remove_macro_references(text) if has_macro_reference else text
 
     # Extract all words from the cleaned text
     all_words = re.findall(r'\b\w+\b', text_for_word_count) if not is_empty else []
@@ -724,13 +639,13 @@ def cell_metrics(cell_text: str) -> Dict[str, Any]:
     placeholder_word_count = len(placeholder_words) + len(index_words)  # Count indices as placeholders
     
     # Extract URL links
-    links = len(re.findall(r"https?://[^\s)]+", text))
+    links = len(re.findall(URL_PATTERN, text))
     
     # Count macro references as links (they're references to external content)
     links += macro_references
     
-    images = len(re.findall(r"\b\S+\.(png|jpg|jpeg|gif|svg|bmp|webp)\b", text, re.I))
-    files = len(re.findall(r"\b\S+\.(pdf|docx?|xlsx?|csv|pptx?)\b", text, re.I))
+    images = len(re.findall(IMAGE_PATTERN, text, re.I))
+    files = len(re.findall(FILE_PATTERN, text, re.I))
     mention_count, mentions = count_mentions_in_text(text)
     date_count, dates = detect_dates(text)
 
@@ -968,21 +883,42 @@ def find_links_images(text: str) -> Dict[str, int]:
     mention_count, _ = count_mentions_in_text(text)
     
     # Count URL links
-    url_links = len(re.findall(r"https?://[^\s)]+", text))
+    url_links = len(re.findall(URL_PATTERN, text))
     
-    # Count macro reference links (JIRA-REF, JIRA, INCLUDE-REF, PAGE-REF)
-    macro_links = 0
-    macro_links += len(re.findall(r'\[JIRA-REF:[^\]]+\]', text, re.I))
-    macro_links += len(re.findall(r'\[JIRA:[^\]]+\]', text, re.I))
-    macro_links += len(re.findall(r'\[INCLUDE-REF:[^\]]+\]', text, re.I))
-    macro_links += len(re.findall(r'\[PAGE-REF:[^\]]+\]', text, re.I))
+    # Count macro reference links
+    macro_links = sum(len(re.findall(pattern, text, re.I)) for pattern in MACRO_PATTERNS.values())
     
     return {
         "links": url_links + macro_links,
-        "images": len(re.findall(r"\b\S+\.(png|jpg|jpeg|gif|svg|bmp|webp)\b", text, re.I)),
-        "file_refs": len(re.findall(r"\b\S+\.(pdf|docx?|xlsx?|csv|pptx?)\b", text, re.I)),
+        "images": len(re.findall(IMAGE_PATTERN, text, re.I)),
+        "file_refs": len(re.findall(FILE_PATTERN, text, re.I)),
         "mentions": mention_count,
     }
+
+
+def _clean_markdown_for_word_count(md: str) -> str:
+    """
+    Clean markdown text for word counting by removing non-content elements.
+    
+    Removes: headings, tables, blockquotes, macros, images, details/summary tags
+    """
+    md_cleaned = md
+    
+    # Define cleanup patterns with descriptions
+    cleanup_patterns = [
+        (r'^#{1,6}\s+.*$', re.M, 'heading lines'),
+        (r'^[|\s]*\|.*$', re.M, 'table lines'),
+        (r'^>.*$', re.M, 'blockquotes'),
+        (r'\[MACRO:.*?\]', 0, 'macro references'),
+        (r'<summary>.*?</summary>', re.DOTALL, 'summary tags'),
+        (r'</?details>', 0, 'details tags'),
+        (r'!\[.*?\]\(.*?\)', 0, 'images'),
+    ]
+    
+    for pattern, flags, _ in cleanup_patterns:
+        md_cleaned = re.sub(pattern, '', md_cleaned, flags=flags)
+    
+    return md_cleaned
 
 
 def analyze_markdown_structure(md: str) -> Dict[str, Any]:
@@ -1023,34 +959,8 @@ def analyze_markdown_structure(md: str) -> Dict[str, Any]:
         heading_words = len(re.findall(r'\b\w+\b', clean_heading))
         heading_word_count += heading_words
 
-    # Count total words in markdown, but first remove metadata content and tables
-    md_for_counting = md
-    
-    # Remove heading lines FIRST (before counting words)
-    # This ensures headings are completely excluded from word count
-    md_for_counting = re.sub(r'^#{1,6}\s+.*$', '', md_for_counting, flags=re.M)
-    
-    # Remove tables entirely (including headers, separators, and data)
-    # Tables are lines starting with '|'
-    md_for_counting = re.sub(r'^[|\s]*\|.*$', '', md_for_counting, flags=re.M)
-    
-    # Remove blockquotes (UI instructions, info boxes, etc.)
-    md_for_counting = re.sub(r'^>.*$', '', md_for_counting, flags=re.M)
-    
-    # Remove macros (e.g., [MACRO: Roadmap Planner ...])
-    md_for_counting = re.sub(r'\[MACRO:.*?\]', '', md_for_counting)
-    
-    # Remove summary tags content (but keep details block content like tables)
-    md_for_counting = re.sub(r'<summary>.*?</summary>', '', md_for_counting, flags=re.DOTALL)
-    
-    # Remove details opening/closing tags (but keep content between them)
-    md_for_counting = re.sub(r'<details>', '', md_for_counting)
-    md_for_counting = re.sub(r'</details>', '', md_for_counting)
-    
-    # Remove image alt text and URLs
-    md_for_counting = re.sub(r'!\[.*?\]\(.*?\)', '', md_for_counting)
-    
-    # Count words (headings already removed, so this is the word count excluding headings)
+    # Clean markdown and count words (headings already removed)
+    md_for_counting = _clean_markdown_for_word_count(md)
     word_count_excluding_headings = len(re.findall(r'\b\w+\b', md_for_counting))
     
     # Total word count including headings

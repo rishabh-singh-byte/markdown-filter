@@ -170,7 +170,7 @@ Model predictions and error analysis on annotated data.
                     • Ground truth labels           • Gibberish detection
                           │                              │
                           └──────────┬───────────────────┘
-                                      ▼
+                                     ▼
                               Model Predictions
                               ─────────────────
                               • Results (614)
@@ -241,9 +241,9 @@ grep "specific-page-url" filter/data/confluence_markdown.jsonl
 | Version | Date | Project | Records | Description |
 |---------|------|---------|---------|-------------|
 | v1 | Nov 2024 | Page Quality v1 | 123 | Initial quality annotations |
-| v4 | Dec 2024 | Meeting Notes v4 | 182 | Meeting notes focus |
 | v2 | Jan 2025 | Page Quality v2 | 60 | Second validation round |
 | v3 | Jan 2025 | Page Quality v3 | 249 | Final comprehensive set |
+| v4 | Dec 2024 | Meeting Notes v4 | 182 | Meeting notes |
 | **Combined** | Jan 2025 | **All Projects** | **614** | **Complete dataset** |
 
 ---

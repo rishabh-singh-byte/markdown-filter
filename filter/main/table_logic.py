@@ -51,11 +51,31 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fil
 # =============================================================================
 
 DATA_FILE = "/Users/rishabh.singh/Desktop/markdown_filter/filter/data/confluence_markdown.jsonl"
-DEFAULT_TEST_INDEX = 6933
+DEFAULT_TEST_INDEX = 2588
 
 # Decision thresholds
 MEANINGFUL_WORDS_THRESHOLD = 3
 WORDS_PER_CELL_USEFUL = 5  # Single cell with >5 words is useful
+HEADER_HEAVY_THRESHOLD = 70  # Percentage threshold for header-heavy tables
+
+# Priority content types
+PRIORITY_CONTENT_TYPES = ['links', 'files', 'images', 'mentions']
+
+# =============================================================================
+#                           HELPER FUNCTIONS
+# =============================================================================
+
+def _has_content_in_data_rows(cell_grid: List[List[Dict]], col_idx: int, cols: int) -> bool:
+    """Check if column has content in data rows (excluding header)."""
+    if col_idx >= cols:
+        return False
+    
+    for row_idx, row in enumerate(cell_grid):
+        if row_idx == 0:  # Skip header
+            continue
+        if col_idx < len(row) and row[col_idx].get('meaningful_words', 0) > 0:
+            return True
+    return False
 
 # =============================================================================
 #                           PRIORITY 1: HIGH-VALUE CONTENT CHECKS
@@ -69,22 +89,20 @@ def check_priority_content(analysis: Dict[str, Any]) -> Tuple[bool, str, Dict[st
     Returns:
         (has_priority_content, reason, counts_dict)
     """
-    links = analysis.get('links', 0)
-    files = analysis.get('files', 0)
-    images = analysis.get('images', 0)
-    mentions = analysis.get('mentions', 0)
-    
-    counts = {'links': links, 'files': files, 'images': images, 'mentions': mentions}
+    counts = {key: analysis.get(key, 0) for key in PRIORITY_CONTENT_TYPES}
     
     # Priority order: Links > Files > Images > Mentions
-    if links > 0:
-        return True, f"{links} link(s) found (highest priority)", counts
-    if files > 0:
-        return True, f"{files} file(s) found (high priority)", counts
-    if images > 0:
-        return True, f"{images} image(s) found", counts
-    if mentions > 0:
-        return True, f"{mentions} user mention(s) found", counts
+    priority_map = [
+        ('links', 'highest priority'),
+        ('files', 'high priority'),
+        ('images', ''),
+        ('mentions', '')
+    ]
+    
+    for key, priority_label in priority_map:
+        if counts[key] > 0:
+            priority_text = f" ({priority_label})" if priority_label else ""
+            return True, f"{counts[key]} {key[:-1]}(s) found{priority_text}", counts
     
     return False, "No priority content", counts
 
@@ -126,16 +144,9 @@ def check_first_row_only_filled(analysis: Dict[str, Any]) -> Tuple[bool, str]:
         return False, f"Only {rows} row total"
     
     # Count data rows with content
-    filled_data_rows = 0
-    for i, row_summary in enumerate(per_row):
-        if i == 0:  # Skip header
-            continue
-        
-        meaningful_words = row_summary.get('meaningful_words', 0)
-        links = row_summary.get('links', 0)
-        
-        if meaningful_words > 0 or links > 0:
-            filled_data_rows += 1
+    filled_data_rows = sum(1 for i, row_summary in enumerate(per_row)
+                          if i > 0 and (row_summary.get('meaningful_words', 0) > 0 
+                                       or row_summary.get('links', 0) > 0))
     
     if filled_data_rows == 0:
         return True, f"Only header row filled, {rows - 1} data rows empty"
@@ -155,20 +166,8 @@ def check_first_column_only_filled(analysis: Dict[str, Any]) -> Tuple[bool, str]
         return False, f"Only {cols} column total"
     
     # Count columns with content (excluding header row)
-    col_has_content = [False] * cols
-    
-    for row_idx, row in enumerate(cell_grid):
-        if row_idx == 0:  # Skip header
-            continue
-        
-        for col_idx, cell in enumerate(row):
-            if col_idx >= cols:
-                break
-            
-            meaningful_words = cell.get('meaningful_words', 0)
-            if meaningful_words > 0:
-                col_has_content[col_idx] = True
-    
+    col_has_content = [_has_content_in_data_rows(cell_grid, col_idx, cols) 
+                       for col_idx in range(cols)]
     filled_cols = sum(col_has_content)
     
     if filled_cols == 1 and col_has_content[0]:
@@ -190,27 +189,12 @@ def check_single_row_or_column_filled(analysis: Dict[str, Any]) -> Tuple[bool, s
         return False, "Too small to check", {}
     
     # Check rows (excluding header)
-    rows_with_content = []
-    for row_idx, row in enumerate(cell_grid):
-        if row_idx == 0:
-            continue
-        
-        has_content = any(cell.get('meaningful_words', 0) > 0 for cell in row)
-        if has_content:
-            rows_with_content.append(row_idx)
+    rows_with_content = [row_idx for row_idx, row in enumerate(cell_grid)
+                        if row_idx > 0 and any(cell.get('meaningful_words', 0) > 0 for cell in row)]
     
     # Check columns
-    cols_with_content = []
-    for col_idx in range(cols):
-        has_content = False
-        for row_idx, row in enumerate(cell_grid):
-            if row_idx == 0:
-                continue
-            if col_idx < len(row) and row[col_idx].get('meaningful_words', 0) > 0:
-                has_content = True
-                break
-        if has_content:
-            cols_with_content.append(col_idx)
+    cols_with_content = [col_idx for col_idx in range(cols)
+                        if _has_content_in_data_rows(cell_grid, col_idx, cols)]
     
     total_data_rows = rows - 1
     
@@ -239,27 +223,12 @@ def count_empty_rows_and_columns(analysis: Dict[str, Any]) -> Dict[str, int]:
     cols = analysis.get('cols', 0)
     
     # Count empty rows (excluding header)
-    empty_rows = 0
-    for row_idx, row in enumerate(cell_grid):
-        if row_idx == 0:
-            continue
-        
-        is_empty = all(cell.get('meaningful_words', 0) == 0 for cell in row)
-        if is_empty:
-            empty_rows += 1
+    empty_rows = sum(1 for row_idx, row in enumerate(cell_grid)
+                    if row_idx > 0 and all(cell.get('meaningful_words', 0) == 0 for cell in row))
     
     # Count empty columns
-    empty_cols = 0
-    for col_idx in range(cols):
-        is_empty = True
-        for row_idx, row in enumerate(cell_grid):
-            if row_idx == 0:
-                continue
-            if col_idx < len(row) and row[col_idx].get('meaningful_words', 0) > 0:
-                is_empty = False
-                break
-        if is_empty:
-            empty_cols += 1
+    empty_cols = sum(1 for col_idx in range(cols)
+                    if not _has_content_in_data_rows(cell_grid, col_idx, cols))
     
     return {
         'empty_rows': empty_rows,
@@ -300,7 +269,7 @@ def check_header_heavy_table(analysis: Dict[str, Any]) -> Tuple[bool, str, Dict]
     }
     
     # If header has >70% of content, it's likely gibberish
-    if header_percentage > 70:
+    if header_percentage > HEADER_HEAVY_THRESHOLD:
         return True, f"Header has {header_percentage:.1f}% of content ({header_words}/{total_meaningful} words)", details
     
     return False, f"Header has {header_percentage:.1f}% of content (acceptable)", details
@@ -319,9 +288,6 @@ def calculate_fill_percentage(analysis: Dict[str, Any]) -> Tuple[float, Dict]:
     rows = analysis.get('rows', 0)
     cols = analysis.get('cols', 0)
     headings = analysis.get('headings', {})
-    
-    if not headings:
-        headings = {}
     
     # Determine which cells are headers
     heading_type = headings.get('heading_type', 'none')
@@ -349,15 +315,13 @@ def calculate_fill_percentage(analysis: Dict[str, Any]) -> Tuple[float, Dict]:
             'reason': 'No data cells (table only has headers)'
         }
     
+    # Count filled cells
     filled_cells = 0
-    
     for row_idx, row in enumerate(cell_grid):
-        # Skip column header row
         if has_column_headers and row_idx == 0:
             continue
         
         for col_idx, cell in enumerate(row):
-            # Skip row header column
             if has_row_headers and col_idx == 0:
                 continue
             
@@ -427,31 +391,25 @@ def decide_table_quality(analysis: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]
         }
     
     # STEP 3: Structural Gibberish Checks
-    first_row_only, first_row_reason = check_first_row_only_filled(analysis)
-    decision_log.append(f"First Row Only: {first_row_reason}")
+    structural_checks = [
+        (check_first_row_only_filled, "Only header row filled (rest empty)"),
+        (check_first_column_only_filled, "Only first column filled"),
+    ]
     
-    if first_row_only:
-        return "GIBBERISH", {
-            "decision": "GIBBERISH",
-            "reason": "Only header row filled (rest empty)",
-            "fill_info": fill_info,
-            "fill_percentage": fill_details['percentage'],
-            "decision_log": decision_log
-        }
+    for check_func, gibberish_reason in structural_checks:
+        is_gibberish, check_reason = check_func(analysis)
+        decision_log.append(f"{check_func.__name__.replace('check_', '').replace('_', ' ').title()}: {check_reason}")
+        
+        if is_gibberish:
+            return "GIBBERISH", {
+                "decision": "GIBBERISH",
+                "reason": gibberish_reason,
+                "fill_info": fill_info,
+                "fill_percentage": fill_details['percentage'],
+                "decision_log": decision_log
+            }
     
-    first_col_only, first_col_reason = check_first_column_only_filled(analysis)
-    decision_log.append(f"First Column Only: {first_col_reason}")
-    
-    if first_col_only:
-        return "GIBBERISH", {
-            "decision": "GIBBERISH",
-            "reason": "Only first column filled",
-            "fill_info": fill_info,
-            "fill_percentage": fill_details['percentage'],
-            "decision_log": decision_log
-        }
-    
-    # Check for header-heavy tables (heading in column only pattern)
+    # Check for header-heavy tables
     header_heavy, header_reason, header_details = check_header_heavy_table(analysis)
     decision_log.append(f"Header Heavy: {header_reason}")
     
@@ -465,6 +423,7 @@ def decide_table_quality(analysis: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]
             "decision_log": decision_log
         }
     
+    # Check single row/column filled
     single_filled, single_reason, single_details = check_single_row_or_column_filled(analysis)
     decision_log.append(f"Single Row/Col: {single_reason}")
     
@@ -566,57 +525,33 @@ def decide_table_quality_with_context(
     if not is_small_kv or all_tables is None:
         return decide_table_quality(analysis)
     
-    # We have a small key-value table with page context
-    # NEW LOGIC: Check if any tables AFTER this one are useful
-    # If all subsequent tables are gibberish, mark this small KV as GIBBERISH
-    
     # Get tables that come AFTER the current table
     subsequent_tables = []
     if current_table_index is not None:
-        for idx in range(current_table_index + 1, len(all_tables)):
-            subsequent_tables.append(all_tables[idx])
+        subsequent_tables = all_tables[current_table_index + 1:]
     
     # If there are no tables after this one, use normal decision logic
     if not subsequent_tables:
-        # This is the last table (or only table)
-        # Use normal decision logic (will check fill percentage)
         return decide_table_quality(analysis)
     
     # Check if any subsequent table is useful
-    has_useful_subsequent_table = False
+    has_useful_subsequent_table = any(
+        decide_table_quality(tbl)[0] == "USEFUL" 
+        for tbl in subsequent_tables
+    )
     
-    for subsequent_tbl in subsequent_tables:
-        # Don't apply KV logic recursively - use standard decision
-        subsequent_decision, _ = decide_table_quality(subsequent_tbl)
-        if subsequent_decision == "USEFUL":
-            has_useful_subsequent_table = True
-            break
-    
-    # If NO subsequent tables are useful (all are gibberish or empty),
-    # mark this small key-value table as GIBBERISH
-    if not has_useful_subsequent_table:
-        fill_pct, fill_details = calculate_fill_percentage(analysis)
-        fill_info = f"{fill_details['filled']}/{fill_details['total']} cells ({fill_details['percentage']}%) excluding headers"
-        
-        return "GIBBERISH", {
-            "decision": "GIBBERISH",
-            "reason": "Small key-value table (≤4 rows) with no useful tables after it",
-            "fill_info": fill_info,
-            "fill_percentage": fill_details['percentage'],
-            "decision_log": ["Small key-value table with only gibberish tables following"]
-        }
-    
-    # If there IS at least one useful table after this KV table,
-    # also mark this small KV table as GIBBERISH (it's just metadata)
+    # Build decision for small key-value table
     fill_pct, fill_details = calculate_fill_percentage(analysis)
     fill_info = f"{fill_details['filled']}/{fill_details['total']} cells ({fill_details['percentage']}%) excluding headers"
     
+    reason_suffix = "with no useful tables after it" if not has_useful_subsequent_table else "- metadata table with other tables present"
+    
     return "GIBBERISH", {
         "decision": "GIBBERISH",
-        "reason": "Small key-value table (≤4 rows) - metadata table with other tables present",
+        "reason": f"Small key-value table (≤4 rows) {reason_suffix}",
         "fill_info": fill_info,
         "fill_percentage": fill_details['percentage'],
-        "decision_log": ["Small key-value metadata table"]
+        "decision_log": [f"Small key-value {'metadata ' if has_useful_subsequent_table else ''}table"]
     }
 
 
@@ -624,64 +559,17 @@ def decide_table_quality_with_context(
 #                           COMPATIBILITY WRAPPER FOR LEGACY INTERFACE
 # =============================================================================
 
-def is_table_gibberish(
-    table_analysis: Dict[str, Any],
-    all_tables: List[Dict[str, Any]] = None,
-    current_table_index: int = None
+def _build_compatible_decision_info(
+    decision: str,
+    decision_info: Dict[str, Any],
+    table_analysis: Dict[str, Any]
 ) -> Tuple[bool, Dict[str, Any]]:
     """
-    Wrapper function for compatibility with table_decider.py interface.
-    Uses the advanced priority-based decision system from decide_table_quality().
-    
-    Now supports optional context parameters for small key-value table handling.
-    
-    This function is used by page_decider.py and decider.py.
-    
-    Args:
-        table_analysis: Table analysis dictionary from analyze_table_content()
-        all_tables: Optional list of ALL table analyses on the page for context-aware decisions
-        current_table_index: Optional index of current table in all_tables
+    Build compatible decision info for legacy interface.
     
     Returns:
-        tuple: (is_gibberish: bool, decision_info: dict)
-            - is_gibberish: True if table is gibberish, False if useful
-            - decision_info: Dictionary with decision details including:
-                - is_gibberish: bool
-                - meaningful_words: int
-                - total_words: int
-                - placeholder_words: int
-                - links: int
-                - images: int
-                - files: int
-                - mentions: int
-                - useful_indicators: list of reasons
-                - reason: str (main reason for decision)
+        tuple: (is_gibberish: bool, compatible_info: dict)
     """
-    if not table_analysis:
-        return True, {
-            "is_gibberish": True,
-            "reason": "Empty or invalid table analysis",
-            "meaningful_words": 0,
-            "total_words": 0,
-            "placeholder_words": 0,
-            "links": 0,
-            "images": 0,
-            "files": 0,
-            "mentions": 0,
-            "useful_indicators": []
-        }
-    
-    # Use context-aware decision if context is provided
-    if all_tables is not None:
-        decision, decision_info = decide_table_quality_with_context(
-            table_analysis,
-            all_tables,
-            current_table_index
-        )
-    else:
-        # Call the standard decision system without context
-        decision, decision_info = decide_table_quality(table_analysis)
-    
     # Extract metrics from analysis
     meaningful_words = table_analysis.get('meaningful_words', 0)
     total_words = table_analysis.get('words', 0)
@@ -731,21 +619,23 @@ def is_table_gibberish(
     return is_gibberish, compatible_info
 
 
-def is_table_gibberish_with_context(
+def is_table_gibberish(
     table_analysis: Dict[str, Any],
     all_tables: List[Dict[str, Any]] = None,
     current_table_index: int = None
 ) -> Tuple[bool, Dict[str, Any]]:
     """
-    Enhanced wrapper with page context support for small key-value table handling.
+    Wrapper function for compatibility with table_decider.py interface.
+    Uses the advanced priority-based decision system from decide_table_quality().
     
-    This function should be used when processing multiple tables on a page to properly
-    handle small key-value tables (rows <= 4, 2 columns) based on page context.
+    Now supports optional context parameters for small key-value table handling.
+    
+    This function is used by page_decider.py and decider.py.
     
     Args:
-        table_analysis: Current table analysis dictionary
-        all_tables: List of ALL table analyses on the page (optional)
-        current_table_index: Index of current table in all_tables (optional)
+        table_analysis: Table analysis dictionary from analyze_table_content()
+        all_tables: Optional list of ALL table analyses on the page for context-aware decisions
+        current_table_index: Optional index of current table in all_tables
     
     Returns:
         tuple: (is_gibberish: bool, decision_info: dict)
@@ -764,60 +654,15 @@ def is_table_gibberish_with_context(
             "useful_indicators": []
         }
     
-    # Call the context-aware decision system
-    decision, decision_info = decide_table_quality_with_context(
-        table_analysis, 
-        all_tables, 
-        current_table_index
-    )
+    # Use context-aware decision if context is provided
+    if all_tables is not None:
+        decision, decision_info = decide_table_quality_with_context(
+            table_analysis, all_tables, current_table_index
+        )
+    else:
+        decision, decision_info = decide_table_quality(table_analysis)
     
-    # Extract metrics from analysis
-    meaningful_words = table_analysis.get('meaningful_words', 0)
-    total_words = table_analysis.get('words', 0)
-    placeholder_words = table_analysis.get('placeholder_words', 0)
-    links = table_analysis.get('links', 0)
-    images = table_analysis.get('images', 0)
-    files = table_analysis.get('files', 0)
-    mentions = table_analysis.get('mentions', 0)
-    
-    # Convert decision to boolean
-    is_gibberish = (decision == "GIBBERISH")
-    
-    # Build useful indicators list for compatibility
-    useful_indicators = []
-    if not is_gibberish:
-        if meaningful_words >= MEANINGFUL_WORDS_THRESHOLD:
-            useful_indicators.append(f"{meaningful_words} meaningful words (excl. headings & placeholders)")
-        if links > 0:
-            useful_indicators.append(f"{links} link(s)")
-        if images > 0:
-            useful_indicators.append(f"{images} image(s)")
-        if files > 0:
-            useful_indicators.append(f"{files} file reference(s)")
-        if mentions > 0:
-            useful_indicators.append(f"{mentions} user mention(s)")
-    
-    # Build compatible decision info
-    compatible_info = {
-        "is_gibberish": is_gibberish,
-        "meaningful_words": meaningful_words,
-        "total_words": total_words,
-        "placeholder_words": placeholder_words,
-        "links": links,
-        "images": images,
-        "files": files,
-        "mentions": mentions,
-        "useful_indicators": useful_indicators,
-        "reason": decision_info.get("reason", "Unknown"),
-        # Include additional info from advanced decision system
-        "advanced_decision": decision,
-        "fill_info": decision_info.get("fill_info", ""),
-        "fill_percentage": decision_info.get("fill_percentage", 0.0),
-        # Context-aware flag
-        "is_small_key_value": is_small_key_value_table(table_analysis),
-    }
-    
-    return is_gibberish, compatible_info
+    return _build_compatible_decision_info(decision, decision_info, table_analysis)
 
 
 # =============================================================================
@@ -857,44 +702,106 @@ def categorize_table_size(analysis: Dict[str, Any]) -> str:
 #                           OUTPUT FUNCTIONS - BY SIZE
 # =============================================================================
 
-def print_analysis_very_small(analysis: Dict[str, Any], decision: str, decision_info: Dict, table_idx: int):
-    """Print analysis for very small (key-value) tables (n × 2)."""
-    
-    # Header
-    if decision == "USEFUL":
-        emoji = "✅"
-    elif decision == "GIBBERISH":
-        emoji = "❌"
-    else:
-        emoji = "⚠️ "
-    
+def _print_header(table_idx: int, decision: str, size_label: str, 
+                 decision_info: Dict, separator: str = "─" * 80):
+    """Print table analysis header."""
+    emoji_map = {"USEFUL": "✅", "GIBBERISH": "❌"}
+    emoji = emoji_map.get(decision, "⚠️ ")
     fill_info = decision_info.get('fill_info', 'N/A')
     
-    print(f"\n{'─'*80}")
-    print(f"🔷 Table {table_idx + 1}: {emoji} {decision} [VERY SMALL - Key-Value Table]")
+    print(f"\n{separator}")
+    print(f"🔷 Table {table_idx + 1}: {emoji} {decision} [{size_label}]")
     print(f"   Reason: {decision_info['reason']}")
     print(f"   Fill: {fill_info}")
-    print(f"{'─'*80}")
+    print(f"{separator}")
+
+
+def _print_dimensions(rows: int, cols: int, data_rows: int = None):
+    """Print table dimensions."""
+    print(f"\n📐 Table Dimensions:")
+    print(f"   • Size: {rows} rows × {cols} columns")
     
+    if data_rows is not None:
+        total_cells = rows * cols
+        data_cells = data_rows * cols if cols > 0 else 0
+        print(f"   • Total Cells: {total_cells}")
+        print(f"   • Data Rows: {data_rows} (excluding header)")
+        print(f"   • Data Cells: {data_cells} (excluding header)")
+
+
+def _print_content_metrics(analysis: Dict[str, Any], prefix: str = "📊"):
+    """Print content metrics."""
+    meaningful_words = analysis.get('meaningful_words', 0)
+    total_words = analysis.get('words', 0)
+    dates = analysis.get('dates', 0)
+    has_priority, _, priority_counts = check_priority_content(analysis)
+    
+    print(f"\n{prefix} Content Metrics:")
+    for key in PRIORITY_CONTENT_TYPES:
+        print(f"   • {key.title()}: {priority_counts[key]}")
+    print(f"   • Dates: {dates}")
+    print(f"   • Meaningful Words: {meaningful_words} (includes {dates} dates)")
+    print(f"   • Total Words: {total_words}")
+
+
+def _print_fill_analysis(fill_details: Dict):
+    """Print fill analysis."""
+    empty_cells = fill_details['total'] - fill_details['filled']
+    
+    print(f"\n📈 Fill Analysis (Data Cells Only - Excluding All Headers):")
+    print(f"   • Fill Percentage: {fill_details['percentage']}%")
+    print(f"   • Filled Data Cells: {fill_details['filled']}/{fill_details['total']}")
+    print(f"   • Empty Data Cells: {empty_cells}/{fill_details['total']}")
+
+
+def _print_row_summary(per_row: List[Dict], detailed: bool = False):
+    """Print row-wise summary."""
+    print(f"\n📋 {'Content Row-wise' if detailed else 'Row-wise Summary'}:")
+    
+    for row_idx, row_summary in enumerate(per_row):
+        row_type = "HEADER" if row_idx == 0 else f"Row {row_idx}"
+        row_meaningful = row_summary.get('meaningful_words', 0)
+        row_total = row_summary.get('word_count', 0)
+        row_total_cells = row_summary.get('cols', 0)
+        row_empty_cells = row_summary.get('empty_cell_count', 0)
+        row_filled_cells = row_total_cells - row_empty_cells
+        
+        if detailed:
+            row_links = row_summary.get('links', 0)
+            row_files = row_summary.get('files', 0)
+            row_images = row_summary.get('images', 0)
+            row_mentions = row_summary.get('mentions', 0)
+            row_placeholder = row_summary.get('placeholder_words', 0)
+            row_dates = row_summary.get('dates', 0)
+            
+            print(f"   {row_type}:")
+            print(f"      Cells: {row_filled_cells}/{row_total_cells} filled | "
+                  f"Words: {row_meaningful} meaningful / {row_total} total | "
+                  f"Links: {row_links} | Files: {row_files} | Images: {row_images} | "
+                  f"Mentions: {row_mentions} | Dates: {row_dates} | Placeholders: {row_placeholder}")
+        else:
+            print(f"   {row_type}: {row_filled_cells}/{row_total_cells} cells | {row_meaningful} meaningful words")
+
+
+def print_analysis_very_small(analysis: Dict[str, Any], decision: str, decision_info: Dict, table_idx: int):
+    """Print analysis for very small (key-value) tables (n × 2)."""
     rows = analysis.get('rows', 0)
     cols = analysis.get('cols', 0)
+    
+    _print_header(table_idx, decision, "VERY SMALL - Key-Value Table", decision_info)
     
     print(f"\n📐 Table Dimensions:")
     print(f"   • Size: {rows} rows × {cols} columns (Key-Value format)")
     print(f"   • Total Pairs: {rows - 1} (excluding header)")
     
     # Analyze 2nd column (values column) excluding header
-    per_row = analysis.get('per_row_summaries', [])
     cell_grid = analysis.get('cell_metrics_grid', [])
     
-    if per_row and cell_grid:
-        # Get data from 2nd column (index 1) for all data rows
-        second_col_filled = 0
-        second_col_total_words = 0
-        second_col_meaningful_words = 0
-        second_col_links = 0
-        second_col_images = 0
-        second_col_dates = 0
+    if cell_grid:
+        # Count content in 2nd column
+        second_col_counts = {'filled': 0}
+        content_keys = ['words', 'meaningful_words', 'links', 'images', 'dates']
+        second_col_counts.update({key: 0 for key in content_keys})
         
         total_data_rows = rows - 1
         
@@ -902,232 +809,108 @@ def print_analysis_very_small(analysis: Dict[str, Any], decision: str, decision_
             if len(cell_grid[row_idx]) > 1:
                 cell = cell_grid[row_idx][1]  # Second column
                 if cell.get('meaningful_words', 0) > 0 or cell.get('links', 0) > 0:
-                    second_col_filled += 1
-                second_col_total_words += cell.get('words', 0)
-                second_col_meaningful_words += cell.get('meaningful_words', 0)
-                second_col_links += cell.get('links', 0)
-                second_col_images += cell.get('images', 0)
-                second_col_dates += cell.get('dates', 0)
+                    second_col_counts['filled'] += 1
+                
+                for key in content_keys:
+                    second_col_counts[key] += cell.get(key, 0)
         
-        fill_percentage = (second_col_filled / total_data_rows * 100) if total_data_rows > 0 else 0
+        fill_percentage = (second_col_counts['filled'] / total_data_rows * 100) if total_data_rows > 0 else 0
         
         print(f"\n📊 Values Column Analysis (2nd column, excluding header):")
-        print(f"   • Filled Cells: {second_col_filled}/{total_data_rows} ({fill_percentage:.1f}%)")
-        print(f"   • Empty Cells: {total_data_rows - second_col_filled}/{total_data_rows}")
-        print(f"   • Meaningful Words: {second_col_meaningful_words} (includes {second_col_dates} dates)")
-        print(f"   • Total Words: {second_col_total_words}")
-        print(f"   • Links: {second_col_links}")
-        print(f"   • Images: {second_col_images}")
-        print(f"   • Dates: {second_col_dates}")
+        print(f"   • Filled Cells: {second_col_counts['filled']}/{total_data_rows} ({fill_percentage:.1f}%)")
+        print(f"   • Empty Cells: {total_data_rows - second_col_counts['filled']}/{total_data_rows}")
+        print(f"   • Meaningful Words: {second_col_counts['meaningful_words']} (includes {second_col_counts['dates']} dates)")
+        print(f"   • Total Words: {second_col_counts['words']}")
+        print(f"   • Links: {second_col_counts['links']}")
+        print(f"   • Images: {second_col_counts['images']}")
+        print(f"   • Dates: {second_col_counts['dates']}")
     
     # Overall content metrics
-    meaningful_words = analysis.get('meaningful_words', 0)
-    total_words = analysis.get('words', 0)
-    
     print(f"\n📋 Overall Content:")
-    print(f"   • Total Meaningful Words: {meaningful_words}")
-    print(f"   • Total Words: {total_words}")
+    print(f"   • Total Meaningful Words: {analysis.get('meaningful_words', 0)}")
+    print(f"   • Total Words: {analysis.get('words', 0)}")
 
 
 def print_analysis_small(analysis: Dict[str, Any], decision: str, decision_info: Dict, table_idx: int):
     """Print analysis for small tables (2-5 rows or columns)."""
-    
-    # Header
-    if decision == "USEFUL":
-        emoji = "✅"
-    elif decision == "GIBBERISH":
-        emoji = "❌"
-    else:
-        emoji = "⚠️ "
-    
-    fill_info = decision_info.get('fill_info', 'N/A')
-    
-    print(f"\n{'─'*80}")
-    print(f"🔷 Table {table_idx + 1}: {emoji} {decision} [SMALL Table]")
-    print(f"   Reason: {decision_info['reason']}")
-    print(f"   Fill: {fill_info}")
-    print(f"{'─'*80}")
-    
     rows = analysis.get('rows', 0)
     cols = analysis.get('cols', 0)
-    total_cells = rows * cols
     data_rows = rows - 1 if rows > 1 else 0
-    data_cells = data_rows * cols if cols > 0 else 0
     
-    print(f"\n📐 Table Dimensions:")
-    print(f"   • Size: {rows} rows × {cols} columns")
-    print(f"   • Total Cells: {total_cells}")
-    print(f"   • Data Cells: {data_cells} (excluding header)")
+    _print_header(table_idx, decision, "SMALL Table", decision_info)
+    _print_dimensions(rows, cols, data_rows)
     
-    # Fill analysis (excluding ALL headers)
+    # Fill analysis
     fill_pct, fill_details = calculate_fill_percentage(analysis)
-    empty_cells = fill_details['total'] - fill_details['filled']
+    _print_fill_analysis(fill_details)
     
-    print(f"\n📊 Content Analysis (Data Cells Only - Excluding Headers):")
-    print(f"   • Fill Percentage: {fill_details['percentage']}%")
-    print(f"   • Filled Data Cells: {fill_details['filled']}/{fill_details['total']}")
-    print(f"   • Empty Data Cells: {empty_cells}/{fill_details['total']}")
-    
-    # Word count
-    meaningful_words = analysis.get('meaningful_words', 0)
-    total_words = analysis.get('words', 0)
-    dates = analysis.get('dates', 0)
-    has_priority, priority_reason, priority_counts = check_priority_content(analysis)
-    
-    print(f"\n📝 Word & Content Metrics:")
-    print(f"   • Meaningful Words: {meaningful_words} (includes {dates} dates)")
-    print(f"   • Total Words: {total_words}")
-    print(f"   • Links: {priority_counts['links']}")
-    print(f"   • Images: {priority_counts['images']}")
-    print(f"   • Files: {priority_counts['files']}")
-    print(f"   • Mentions: {priority_counts['mentions']}")
-    print(f"   • Dates: {dates}")
+    # Content metrics
+    _print_content_metrics(analysis, "📝")
     
     # Row-wise summary
     per_row = analysis.get('per_row_summaries', [])
-    
-    print(f"\n📋 Row-wise Summary:")
-    for row_idx, row_summary in enumerate(per_row):
-        row_type = "HEADER" if row_idx == 0 else f"Row {row_idx}"
-        row_meaningful = row_summary.get('meaningful_words', 0)
-        row_total = row_summary.get('word_count', 0)
-        row_total_cells = row_summary.get('cols', 0)
-        row_empty_cells = row_summary.get('empty_cell_count', 0)
-        row_filled_cells = row_total_cells - row_empty_cells
-        
-        print(f"   {row_type}: {row_filled_cells}/{row_total_cells} cells | {row_meaningful} meaningful words")
+    _print_row_summary(per_row, detailed=False)
 
 
 def print_analysis_medium_large(analysis: Dict[str, Any], decision: str, decision_info: Dict, table_idx: int, size_category: str):
     """Print analysis for medium and large tables (current detailed logic)."""
-    
-    # Header
-    if decision == "USEFUL":
-        emoji = "✅"
-    elif decision == "GIBBERISH":
-        emoji = "❌"
-    else:
-        emoji = "⚠️ "
-    
-    size_label = "MEDIUM Table" if size_category == "MEDIUM" else "LARGE Table"
-    fill_info = decision_info.get('fill_info', 'N/A')
-    
-    print(f"\n{'─'*80}")
-    print(f"🔷 Table {table_idx + 1}: {emoji} {decision} [{size_label}]")
-    print(f"   Reason: {decision_info['reason']}")
-    print(f"   Fill: {fill_info}")
-    print(f"{'─'*80}")
-    
-    # 1. Table Dimensions
     rows = analysis.get('rows', 0)
     cols = analysis.get('cols', 0)
-    total_cells = rows * cols
     data_rows = rows - 1 if rows > 1 else 0
-    data_cells = data_rows * cols if cols > 0 else 0
     
-    print(f"\n📐 Table Dimensions:")
-    print(f"   • Size: {rows} rows × {cols} columns")
-    print(f"   • Total Cells: {total_cells}")
-    print(f"   • Data Rows: {data_rows} (excluding header)")
-    print(f"   • Data Cells: {data_cells} (excluding header)")
+    size_label = "MEDIUM Table" if size_category == "MEDIUM" else "LARGE Table"
+    _print_header(table_idx, decision, size_label, decision_info)
+    _print_dimensions(rows, cols, data_rows)
+    _print_content_metrics(analysis)
     
-    # 2. Direct Metrics
-    has_priority, priority_reason, priority_counts = check_priority_content(analysis)
-    meaningful_words = analysis.get('meaningful_words', 0)
-    total_words = analysis.get('words', 0)
-    
-    dates = analysis.get('dates', 0)
-    
-    print(f"\n📊 Content Metrics:")
-    print(f"   • Links: {priority_counts['links']}")
-    print(f"   • Images: {priority_counts['images']}")
-    print(f"   • File References: {priority_counts['files']}")
-    print(f"   • User Mentions: {priority_counts['mentions']}")
-    print(f"   • Dates: {dates}")
-    print(f"   • Meaningful Words: {meaningful_words} (includes {dates} dates)")
-    print(f"   • Total Words: {total_words}")
-    
-    # 3. Fill Percentage (excluding ALL headers)
+    # Fill analysis
     fill_pct, fill_details = calculate_fill_percentage(analysis)
-    empty_cells = fill_details['total'] - fill_details['filled']
+    _print_fill_analysis(fill_details)
     
-    print(f"\n📈 Fill Analysis (Data Cells Only - Excluding All Headers):")
-    print(f"   • Fill Percentage: {fill_details['percentage']}%")
-    print(f"   • Filled Data Cells: {fill_details['filled']}/{fill_details['total']}")
-    print(f"   • Empty Data Cells: {empty_cells}/{fill_details['total']}")
-    
-    # 4. Structural Boolean Checks
+    # Structural Boolean Checks
     first_row_only, first_row_reason = check_first_row_only_filled(analysis)
     first_col_only, first_col_reason = check_first_column_only_filled(analysis)
     single_filled, single_reason, single_details = check_single_row_or_column_filled(analysis)
     
-    print(f"\n🔍 Structural Checks:")
-    print(f"   • Is Only 1st Row Filled: {first_row_only}")
-    print(f"   • Is Only 1st Column Filled: {first_col_only}")
-    
-    # Check if any single row or column is filled
     only_one_row_filled = single_filled and single_details.get('filled_rows', 0) == 1
     only_one_col_filled = single_filled and single_details.get('filled_cols', 0) == 1
     
+    print(f"\n🔍 Structural Checks:")
+    print(f"   • Is Only 1st Row Filled: {first_row_only}")
+    print(f"   • Is Only 1st Column Filled: {first_col_only}")
     print(f"   • Only 1 Row Filled (anywhere): {only_one_row_filled}")
     print(f"   • Only 1 Column Filled (anywhere): {only_one_col_filled}")
     
-    # 5. Empty rows/columns count
+    # Empty rows/columns count
     empty_counts = count_empty_rows_and_columns(analysis)
-    
     print(f"\n🗑️  Empty Rows/Columns (Excluding Headers):")
     print(f"   • Empty Rows: {empty_counts['empty_rows']}/{empty_counts['total_data_rows']}")
     print(f"   • Empty Columns: {empty_counts['empty_cols']}/{empty_counts['total_cols']}")
     
-    # 6. Placeholder words
-    placeholder_words = analysis.get('placeholder_words', 0)
-    
+    # Placeholder words
     print(f"\n⚠️  Placeholder Content:")
-    print(f"   • Placeholder Words: {placeholder_words}")
+    print(f"   • Placeholder Words: {analysis.get('placeholder_words', 0)}")
     
-    # 7. Header Analysis - Check if header contains most content
+    # Header Analysis
     per_row = analysis.get('per_row_summaries', [])
+    meaningful_words = analysis.get('meaningful_words', 0)
     
-    if per_row:
+    if per_row and meaningful_words > 0:
         header_words = per_row[0].get('meaningful_words', 0) if len(per_row) > 0 else 0
         data_words = sum(row.get('meaningful_words', 0) for row in per_row[1:])
-        total_meaningful = meaningful_words
+        header_percentage = (header_words / meaningful_words * 100) if meaningful_words > 0 else 0
         
-        if total_meaningful > 0:
-            header_percentage = (header_words / total_meaningful * 100) if total_meaningful > 0 else 0
-            
-            print(f"\n📋 Header Analysis:")
-            print(f"   • Header Words: {header_words} meaningful ({header_percentage:.1f}% of total)")
-            print(f"   • Data Rows Words: {data_words} meaningful ({100-header_percentage:.1f}% of total)")
-            
-            # Warn if header has majority of content
-            if header_percentage > 70 and data_rows > 0:
-                print(f"   ⚠️  WARNING: Header contains {header_percentage:.1f}% of content!")
-                print(f"   ⚠️  This suggests 'heading in column only' pattern - may be gibberish")
+        print(f"\n📋 Header Analysis:")
+        print(f"   • Header Words: {header_words} meaningful ({header_percentage:.1f}% of total)")
+        print(f"   • Data Rows Words: {data_words} meaningful ({100-header_percentage:.1f}% of total)")
+        
+        # Warn if header has majority of content
+        if header_percentage > HEADER_HEAVY_THRESHOLD and data_rows > 0:
+            print(f"   ⚠️  WARNING: Header contains {header_percentage:.1f}% of content!")
+            print(f"   ⚠️  This suggests 'heading in column only' pattern - may be gibberish")
     
-    # 8. Content Row-wise
-    print(f"\n📋 Content Row-wise:")
-    for row_idx, row_summary in enumerate(per_row):
-        row_type = "HEADER" if row_idx == 0 else f"Row {row_idx}"
-        row_meaningful = row_summary.get('meaningful_words', 0)
-        row_total = row_summary.get('word_count', 0)
-        row_links = row_summary.get('links', 0)
-        row_files = row_summary.get('files', 0)
-        row_images = row_summary.get('images', 0)
-        row_mentions = row_summary.get('mentions', 0)
-        row_placeholder = row_summary.get('placeholder_words', 0)
-        row_dates = row_summary.get('dates', 0)
-        
-        # Calculate cell fill information
-        row_total_cells = row_summary.get('cols', 0)
-        row_empty_cells = row_summary.get('empty_cell_count', 0)
-        row_filled_cells = row_total_cells - row_empty_cells
-        
-        print(f"   {row_type}:")
-        print(f"      Cells: {row_filled_cells}/{row_total_cells} filled | "
-              f"Words: {row_meaningful} meaningful / {row_total} total | "
-              f"Links: {row_links} | Files: {row_files} | Images: {row_images} | "
-              f"Mentions: {row_mentions} | Dates: {row_dates} | Placeholders: {row_placeholder}")
+    # Content Row-wise
+    _print_row_summary(per_row, detailed=True)
 
 
 def print_analysis(analysis: Dict[str, Any], decision: str, decision_info: Dict, table_idx: int):
@@ -1140,10 +923,14 @@ def print_analysis(analysis: Dict[str, Any], decision: str, decision_info: Dict,
     size_category = categorize_table_size(analysis)
     
     # Route to appropriate analysis function
-    if size_category == "VERY_SMALL":
-        print_analysis_very_small(analysis, decision, decision_info, table_idx)
-    elif size_category == "SMALL":
-        print_analysis_small(analysis, decision, decision_info, table_idx)
+    size_handlers = {
+        "VERY_SMALL": print_analysis_very_small,
+        "SMALL": print_analysis_small,
+    }
+    
+    handler = size_handlers.get(size_category)
+    if handler:
+        handler(analysis, decision, decision_info, table_idx)
     else:  # MEDIUM or LARGE
         print_analysis_medium_large(analysis, decision, decision_info, table_idx, size_category)
 
@@ -1155,7 +942,6 @@ def decide_page_quality(table_decisions: List[str]) -> str:
     
     useful_count = table_decisions.count("USEFUL")
     gibberish_count = table_decisions.count("GIBBERISH")
-    
     total = len(table_decisions)
     
     if useful_count >= total * 0.5:
@@ -1173,7 +959,7 @@ def decide_page_quality(table_decisions: List[str]) -> str:
 def main():
     """Main execution - analyzes document at DEFAULT_TEST_INDEX."""
     # Import here to avoid circular dependency
-    from filter.main.collect import collect_document_data
+    from collect import collect_document_data
     
     index = DEFAULT_TEST_INDEX
     dump_file_name = DATA_FILE
@@ -1221,12 +1007,8 @@ def main():
             page_decision = decide_page_quality(table_decisions)
             print("\n" + "="*80)
             
-            if page_decision == "USEFUL":
-                emoji = "✅"
-            elif page_decision == "GIBBERISH":
-                emoji = "❌"
-            else:
-                emoji = "⚠️ "
+            emoji_map = {"USEFUL": "✅", "GIBBERISH": "❌"}
+            emoji = emoji_map.get(page_decision, "⚠️ ")
             
             print(f"📊 Overall Page Decision: {emoji} {page_decision}")
             cant_decide_count = table_decisions.count("CAN'T DECIDE")

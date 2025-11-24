@@ -112,9 +112,3 @@ index : URLs
 9822 : https://simpplr.atlassian.net/wiki/spaces/SDA/pages/2913273184/Template+-+Meeting+notes
 10091 : https://simpplr.atlassian.net/wiki/spaces/ABS/pages/3084812809/Template+-+Meeting+notes
 10094 : https://simpplr.atlassian.net/wiki/spaces/INT/pages/3084911115/Template+-+Meeting+notes
-
-
-
-
-
-

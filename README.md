@@ -234,49 +234,40 @@ ls -lh filter/data/confluence_markdown.jsonl
 
 ### 1. Quick Test - Single Page Analysis
 
-Test the analyzer on a specific Confluence page:
+Test the analyzer on a specific Confluence page by index:
 
 ```bash
 cd /Users/rishabh.singh/Desktop/markdown_filter
 python filter/main/page_decider.py
 ```
 
-**Output:**
+**Customize test index** by editing `filter/main/page_decider.py`:
+```python
+DEFAULT_TEST_INDEX = 100  # Change to any index (0-10358)
+```
+
+**Example Output:**
 ```
 ================================================================================
 📄 PAGE ANALYSIS - Page 6933
 ================================================================================
-URL: https://confluence.example.com/pages/123456
-Title: Project Documentation
-
 ✅ USEFUL PAGE
 Decision: Useful: 1 useful table(s), 45 words outside tables
 
 Page Metrics:
-  📊 Tables:
-    • Total: 2
-    • Useful: 1
-    • Gibberish: 1
-  📝 Content Outside Tables:
-    • Words: 45
-    • Links: 3
-    • Images: 1
-```
-
-**Customize test index:**
-
-```python
-# Edit filter/main/page_decider.py
-DEFAULT_TEST_INDEX = 100  # Change to any index (0-10358)
+  📊 Tables: Total: 2 | Useful: 1 | Gibberish: 1
+  📝 Content Outside Tables: 45 words, 3 links, 1 image
 ```
 
 ### 2. Test by Page ID and URL
+
+Test with specific Confluence page ID and URL:
 
 ```bash
 python filter/main/decider.py
 ```
 
-Configure in `decider.py`:
+Configure by editing `decider.py`:
 ```python
 DEFAULT_PAGE_ID = 2635071834
 DEFAULT_URL = "https://your-confluence-url.com/pages/..."
@@ -297,7 +288,7 @@ python table_logic.py
 - Row-by-row content breakdown
 - Decision reasoning
 
-### 4. Batch Processing (Production Mode)
+### 4. Batch Processing
 
 Process all annotated pages from Label Studio:
 
@@ -305,191 +296,122 @@ Process all annotated pages from Label Studio:
 python filter/main/decider_label_studio.py
 ```
 
-**Features:**
-- Async batch processing (10 documents at a time)
-- Progress tracking with tqdm
-- Error handling per document
-- Output: `filter/results/label_studio_gibberish_results_3.jsonl`
+**Features:** Async batch processing (10 docs at a time), progress tracking, error handling per document
 
-**Configuration:**
+**Output:** `filter/results/label_studio_gibberish_results_3.jsonl`
+
+**Configure batch size** by editing `decider_label_studio.py`:
 ```python
-# In decider_label_studio.py
-DEFAULT_INPUT_FILE = "filter/label_studio/fetch_tasks/label_studio_combined_processed.jsonl"
-DEFAULT_OUTPUT_FILE = "filter/results/label_studio_gibberish_results_3.jsonl"
-DEFAULT_BATCH_SIZE = 10
+DEFAULT_BATCH_SIZE = 10  # Adjust as needed
 ```
 
 ### 5. Evaluate Model Performance
 
-After batch processing, calculate metrics:
+Calculate accuracy, precision, recall, and F1-score:
 
 ```bash
 python filter/main/metrics.py
 ```
 
-**Output:**
-```
-Overall Accuracy: 84.2%
+**Expected Output:** Overall accuracy: 84.2%, Precision (Gibberish): 88.5%, Recall (Gibberish): 91.2%
 
-Precision:
-  • Gibberish: 88.5%
-  • Useful: 78.3%
+### 6. Debug Individual Components
 
-Recall:
-  • Gibberish: 91.2%
-  • Useful: 72.1%
-
-F1-Score: 82.7%
-
-Confusion Matrix:
-              Gibberish  Useful
-     Gibberish      365     33
-        Useful       48    168
-```
-
-### 6. Debug Pipeline Components
-
-Test individual pipeline stages:
+Test specific pipeline stages:
 
 ```bash
-# Test HTML → Markdown conversion
-python filter/main/conversion3.py
-
-# Test document analysis
-python filter/main/check_markdown.py
-
-# Test data collection
-python filter/main/collect.py
+python filter/main/conversion3.py       # HTML → Markdown conversion
+python filter/main/check_markdown.py    # Document structure analysis
+python filter/main/collect.py           # Data aggregation
 ```
 
 ### 7. Label Studio Integration
 
-Fetch and process annotation tasks:
+Fetch and enrich annotation tasks:
 
 ```bash
-# Fetch tasks from Label Studio API
-python filter/label_studio/fetch_tasks.py
-
-# Extract and enrich with Confluence data
-python filter/label_studio/data_format.py
+python filter/label_studio/fetch_tasks.py    # Fetch from API
+python filter/label_studio/data_format.py    # Enrich with Confluence data
 ```
 
 ---
 
 ## 📊 Examples
 
-### Example 1: Page with Useful Table (USEFUL)
+### Example 1: Page with Links (USEFUL ✅)
 
-**Input:**
-- Table with 3 hyperlinks to other Confluence pages
-- Empty cells elsewhere
-- No content outside table
-
-**Decision:** ✅ USEFUL
-**Reason:** "Useful: 1 useful table(s) (3 links found)"
-
-**Explanation:** Even with minimal text, the presence of links indicates the page serves as a navigation hub or reference point.
+**Input:** Table with 3 hyperlinks, empty cells elsewhere, no content outside table  
+**Reason:** "Useful: 1 useful table(s) (3 links found)" — Links indicate navigation/reference value
 
 ---
 
-### Example 2: Header-Only Table (GIBBERISH)
+### Example 2: Header-Only Table (GIBBERISH ❌)
 
 **Input:**
 ```
 | Name | Status | Date |
 |------|--------|------|
 |      |        |      |
-|      |        |      |
-|      |        |      |
 ```
 
-**Decision:** ❌ GIBBERISH
-**Reason:** "Only header row filled (rest empty)"
-
-**Explanation:** Table was created but never populated with actual data.
+**Reason:** "Only header row filled (rest empty)" — Table created but never populated
 
 ---
 
-### Example 3: Rich Content Page (USEFUL)
+### Example 3: Rich Content Page (USEFUL ✅)
 
-**Input:**
-- Paragraph: "The deployment process involves several steps including configuration validation, security checks, and automated testing. Refer to the deployment guide for detailed instructions."
-- 2 embedded images
-- 1 small table with only row headers
-
-**Decision:** ✅ USEFUL
-**Reason:** "Useful: 45 words outside tables, 2 images"
-
-**Explanation:** Substantial descriptive text and images make this a valuable documentation page, even though the table is incomplete.
+**Input:** 45-word paragraph about deployment, 2 embedded images, 1 incomplete table  
+**Reason:** "Useful: 45 words outside tables, 2 images" — Substantial text and images preserved
 
 ---
 
-### Example 4: Placeholder Table (GIBBERISH)
+### Example 4: Placeholder Table (GIBBERISH ❌)
 
 **Input:**
 ```
-| Item | Value |
-|------|-------|
-| Status | TBD |
-| Owner | TBD |
+| Item   | Value |
+|--------|-------|
+| Status | TBD   |
+| Owner  | TBD   |
 ```
 
-**Decision:** ❌ GIBBERISH
-**Reason:** "0 meaningful words (excluding placeholders)"
-
-**Explanation:** "TBD" is considered a placeholder and not meaningful content.
+**Reason:** "0 meaningful words (excluding placeholders)" — Only placeholder content
 
 ---
 
-### Example 5: Key-Value Table (USEFUL)
+### Example 5: Key-Value Configuration (USEFUL ✅)
 
 **Input:**
 ```
-| Configuration | Value |
-|---------------|-------|
-| Database Host | prod-db-01.example.com |
-| Port | 5432 |
-| Connection Pool | 50 |
-| Timeout | 30s |
+| Configuration   | Value                  |
+|-----------------|------------------------|
+| Database Host   | prod-db-01.example.com |
+| Port            | 5432                   |
+| Connection Pool | 50                     |
 ```
 
-**Decision:** ✅ USEFUL
-**Reason:** "15 meaningful words in values column"
-
-**Explanation:** Key-value tables (n×2) are analyzed with special logic focusing on the values column. This table contains specific configuration information.
+**Reason:** "15 meaningful words in values column" — Key-value tables analyzed by values column
 
 ---
 
-### Example 6: Sparse Mixed Content (USEFUL)
+### Example 6: Mixed Content (USEFUL ✅)
 
-**Input:**
-- Small paragraph: "Last updated: Jan 2025"
-- Table with 30% filled cells containing product names
-- Footer with "@john.doe for questions"
-
-**Decision:** ✅ USEFUL
-**Reason:** "Useful table (8 meaningful words) + 1 user mention"
-
-**Explanation:** Multiple weak signals combine to indicate a legitimate (though possibly outdated) page.
+**Input:** "Last updated: Jan 2025" + table with 30% filled cells + "@john.doe for questions"  
+**Reason:** "Useful table (8 meaningful words) + 1 user mention" — Multiple signals combine
 
 ---
 
-### Example 7: Single-Column Table (GIBBERISH)
+### Example 7: Single-Column Table (GIBBERISH ❌)
 
 **Input:**
 ```
-| Tasks |
-|-------|
+| Tasks  |
+|--------|
 | Item 1 |
 |        |
-|        |
-|        |
 ```
 
-**Decision:** ❌ GIBBERISH
-**Reason:** "Only 1 column filled (anywhere in table)"
-
-**Explanation:** Structural check detected an incomplete table pattern.
+**Reason:** "Only 1 column filled (anywhere in table)" — Incomplete table structure
 
 ---
 
@@ -557,99 +479,24 @@ python filter/label_studio/data_format.py
 
 ---
 
-## 🔮 Future Improvements
-
-### High Priority
-
-- [ ] **Machine Learning Model**: Train a classifier on the 614 annotated pages
-  - Use features: word counts, fill percentages, structural patterns
-  - Expected improvement: 90%+ accuracy vs current 84%
-
-- [ ] **Confidence Scores**: Add probability scores to decisions
-  - Help users understand certainty levels
-  - Enable different action thresholds
-
-- [ ] **Semantic Word Analysis**: Implement meaningful word detection
-  - Detect lorem ipsum and dummy text
-  - Filter technical jargon that's actually informative
-
-### Medium Priority
-
-- [ ] **Temporal Analysis**: Consider page age and staleness
-  - Flag pages not updated in 2+ years
-  - Weight recent updates higher
-
-- [ ] **Multi-Language Support**: Extend to non-English content
-  - Language detection
-  - Locale-specific placeholder words
-
-- [ ] **Table Type Classification**: Distinguish table purposes
-  - Data tables vs. layout tables
-  - Key-value vs. matrix tables
-
-- [ ] **Interactive Web UI**: Build a dashboard for:
-  - Batch processing with progress tracking
-  - Manual review of ambiguous cases
-  - Threshold tuning interface
-
-### Low Priority
-
-- [ ] **API Service**: RESTful API for real-time analysis
-  - Endpoint: POST page HTML → get decision
-  - Integration with Confluence webhooks
-
-- [ ] **Export Report Generator**: Generate cleanup reports
-  - List of gibberish pages by space
-  - Statistics and trends
-  - Export to CSV/Excel
-
-- [ ] **Context-Aware Scoring**: Use page metadata
-  - Owner activity status
-  - Space/category classification
-  - Link graph analysis (orphan detection)
-
-### Research Ideas
-
-- [ ] **Graph-Based Analysis**: Analyze page relationships
-  - Pages with many incoming links are likely valuable
-  - Orphan pages (no links) are candidates for removal
-
-- [ ] **Anomaly Detection**: Identify unusual patterns
-  - Detect auto-generated pages
-  - Find template pages never customized
-
-- [ ] **User Behavior Integration**: Use view/edit analytics
-  - Pages never viewed in 6 months → likely gibberish
-  - Frequent edits → likely valuable
-
----
-
 ## 📚 Additional Documentation
 
-- **[DATA_README.md](DATA_README.md)** - Comprehensive data distribution guide
-  - Source data (10,359 pages)
-  - Label Studio annotations (614 pages)
-  - Model results and mispredictions
-
-- **[filter/main/README.md](filter/main/README.md)** - Pipeline workflow documentation
-  - Module dependencies
-  - Configuration guide
-  - Common workflows
-
-- **[filter/label_studio/README.md](filter/label_studio/README.md)** - Annotation integration
-  - Label Studio setup
-  - Task fetching process
-  - Data enrichment workflow
+| Document | Description |
+|----------|-------------|
+| **[DATA_README.md](DATA_README.md)** | Data distribution: 10,359 source pages, 614 annotated pages, model results |
+| **[filter/main/README.md](filter/main/README.md)** | Pipeline workflow: module dependencies, configuration, common workflows |
+| **[filter/label_studio/README.md](filter/label_studio/README.md)** | Annotation integration: Label Studio setup, task fetching, data enrichment |
 
 ---
 
-## 🤝 Contributing
+## 🔧 Development Guidelines
 
-To contribute improvements:
+When making changes to the codebase:
 
-1. **Test Changes**: Use `page_decider.py` on multiple test indices
+1. **Test Changes**: Use `page_decider.py` on multiple test indices (0-10358)
 2. **Validate Metrics**: Run `metrics.py` to ensure accuracy isn't degraded
-3. **Document Reasoning**: Update this README with design decisions
+3. **Update Documentation**: Keep README files synchronized with code changes
+4. **Preserve Logic**: Ensure existing decision logic and thresholds remain intact unless intentionally modified
 
 ---
 
@@ -663,9 +510,14 @@ To contribute improvements:
 
 ---
 
-1. Check this README and sub-documentation
-2. Review example outputs in `filter/main/README.md`
-3. Inspect specific page decisions using `page_decider.py`
-4. Adjust thresholds in configuration sections
+## ❓ Troubleshooting
+
+If you encounter issues:
+
+1. **Check Data Files**: Verify `confluence_markdown.jsonl` exists and is not corrupted
+2. **Review Sub-Documentation**: See `filter/main/README.md` for pipeline-specific details
+3. **Test Individual Components**: Use `decider.py` or `page_decider.py` to debug specific pages
+4. **Adjust Thresholds**: Modify constants in `table_logic.py` and `page_decider.py` if needed
+5. **Check Dependencies**: Ensure all required packages are installed with correct versions
 
 ---
