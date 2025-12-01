@@ -29,12 +29,16 @@ from typing import Tuple, Dict, Any, List, Optional
 #                           CONFIGURATION CONSTANTS
 # =============================================================================
 
-# UI Macros - Not useful for page analysis
-_UI_MACROS = {"info", "note", "tip", "warning", "success", "error"}
+# UI Macros - Not useful for page analysis (skip these entirely)
+_UI_MACROS = {
+    "info", "note", "tip", "warning", "success", "error",
+    "livesearch",  # Search widget
+    "create-from-template",  # Template creation button
+}
 
 # Default input file path for testing
 DEFAULT_CONFLUENCE_DATA_PATH = "/Users/rishabh.singh/Desktop/markdown_filter/filter/data/confluence_markdown.jsonl"
-DEFAULT_TEST_INDEX = 2588
+DEFAULT_TEST_INDEX = 10131
 
 
 # =============================================================================
@@ -118,10 +122,11 @@ def _extract_macro_params(macro_tag: Tag) -> Dict[str, str]:
     return params
 
 def _extract_macro_metadata(macro_tag: Tag) -> Dict[str, str]:
-    """Extract metadata attributes from macro tag (ac:macro-id, ac:schema-version, etc.)"""
+    """Extract metadata attributes from macro tag (ac:macro-id, ac:schema-version, data-layout, etc.)"""
     metadata = {}
     for attr, val in macro_tag.attrs.items():
-        if attr.startswith("ac:") and attr not in ("ac:name", "ac:macro-name"):
+        # Capture ac: attributes (except name) and data- attributes
+        if (attr.startswith("ac:") and attr not in ("ac:name", "ac:macro-name")) or attr.startswith("data-"):
             metadata[attr] = str(val)
     return metadata
 
@@ -646,18 +651,36 @@ def _render_macro(name: str, params: Dict[str, str], body_html: str, metadata: D
         escaped_md = inner_md.replace("\n", "\n> ")
         return f"\n> **Panel ({colour}):**\n>\n> {escaped_md}\n"
 
-    if n in ('index', 'content-by-label', 'children'):
+    if n in ('index', 'content-by-label', 'contentbylabel', 'children', 'content-report-table', 'recently-updated'):
         # These macros display navigation/reference lists to other pages
         # They should be treated as links/references, not as empty content
         if n == 'children':
             # Children macro displays a list of child pages with links
             return "[PAGE-REF: Child pages list]"
-        elif n == 'content-by-label':
+        elif n in ('content-by-label', 'contentbylabel'):
             # Content by label shows pages with specific labels
             labels = params.get('labels') or params.get('cql') or ''
             if labels:
                 return f"[PAGE-REF: Pages with labels - {labels}]"
             return "[PAGE-REF: Pages by label]"
+        elif n == 'content-report-table':
+            # Content report table displays a dynamic table of pages matching criteria
+            labels = params.get('labels') or ''
+            spaces = params.get('spaces') or ''
+            title = params.get('blankTitle') or 'content'
+            if labels and spaces:
+                return f"[PAGE-REF: {title} in {spaces} (labels: {labels})]"
+            elif labels:
+                return f"[PAGE-REF: {title} (labels: {labels})]"
+            elif spaces:
+                return f"[PAGE-REF: {title} in {spaces}]"
+            return f"[PAGE-REF: {title} report]"
+        elif n == 'recently-updated':
+            # Recently updated macro shows recently modified pages
+            spaces = params.get('spaces') or params.get('spaceKey') or ''
+            if spaces:
+                return f"[PAGE-REF: Recently updated pages in {spaces}]"
+            return "[PAGE-REF: Recently updated pages]"
         else:  # index
             # Index macro creates a table of contents with page links
             return "[PAGE-REF: Page index]"
@@ -668,6 +691,20 @@ def _render_macro(name: str, params: Dict[str, str], body_html: str, metadata: D
         param_str = ", ".join(f"{k}={v}" for k, v in clean_params.items())
         return f"[MACRO: {title} ({param_str})]"
 
+    if n == 'attachments':
+        # Attachments macro is a dynamic viewer that loads files (PDFs, Excel, images, etc.)
+        # at render time. The storage format only contains the macro definition.
+        upload_enabled = params.get('upload', '').lower() == 'true'
+        layout = metadata.get('data-layout', '') if metadata else ''
+        
+        if upload_enabled and layout:
+            return f"[ATTACHMENTS: Dynamic file viewer with upload (layout: {layout})]"
+        elif upload_enabled:
+            return "[ATTACHMENTS: Dynamic file viewer with upload]"
+        elif layout:
+            return f"[ATTACHMENTS: Dynamic file viewer (layout: {layout})]"
+        else:
+            return "[ATTACHMENTS: Dynamic file viewer]"
 
     # generic ac:link with ri:user handled earlier; other macros might need fallback:
     # Render macro with its parameters and a short body preview

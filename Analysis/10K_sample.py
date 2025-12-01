@@ -1,8 +1,14 @@
 """
-Label Studio Async Processor
+Confluence Document Analyzer
 =============================
-Process Label Studio data to determine if pages are gibberish or useful.
+Analyze Confluence markdown documents to determine if pages are gibberish or useful.
 Uses async processing with progress tracking via tqdm.
+
+Output Format:
+    - url: Document URL
+    - decision: "gibberish" or "useful" 
+    - index: Sequential document index
+    - page_title: Document title
 """
 
 # =============================================================================
@@ -16,30 +22,31 @@ from typing import Dict, Any, List
 from tqdm.asyncio import tqdm_asyncio
 from tqdm import tqdm
 
-from page_decider import is_page_gibberish
-from collect import collect_document_data
+from filter.main.page_decider import is_page_gibberish
+from filter.main.collect import collect_document_data
 
 # =============================================================================
 #                           CONFIGURATION PARAMETERS
 # =============================================================================
 
-DEFAULT_INPUT_FILE = "/Users/rishabh.singh/Desktop/markdown_filter/filter/label_studio/fetch_tasks/label_studio_combined_processed.jsonl"
-DEFAULT_OUTPUT_FILE = "/Users/rishabh.singh/Desktop/markdown_filter/filter/results/label_studio_gibberish_results_new_logic.jsonl"
+DEFAULT_INPUT_FILE = "/Users/rishabh.singh/Desktop/markdown_filter/filter/data/confluence_markdown.jsonl"
+DEFAULT_OUTPUT_FILE = "/Users/rishabh.singh/Desktop/markdown_filter/filter/results/confluence_analysis_results_b.json"
 DEFAULT_BATCH_SIZE = 10
 
 # =============================================================================
 #                           ASYNC PROCESSING FUNCTIONS
 # =============================================================================
 
-async def process_document(doc: Dict[str, Any]) -> Dict[str, Any]:
+async def process_document(doc: Dict[str, Any], index: int) -> Dict[str, Any]:
     """
     Process a single document to determine if it's gibberish.
     
     Args:
         doc: Document dictionary with all fields from input file
+        index: Sequential index of the document (0-based)
     
     Returns:
-        Original document dict with added 'result' field containing decision info
+        Simplified dict with only: url, decision, index, page_title
     """
     try:
         # Collect document data for analysis
@@ -48,27 +55,22 @@ async def process_document(doc: Dict[str, Any]) -> Dict[str, Any]:
         # Determine if page is gibberish
         page_is_gibberish = is_page_gibberish(doc_data)[0]
         
-        # Create result dictionary
-        result = {
-            "is_gibberish": "yes" if page_is_gibberish else "no",
+        # Create simplified output with only required fields
+        return {
+            "url": doc.get("url", ""),
+            "decision": "gibberish" if page_is_gibberish else "useful",
+            "index": index,
+            "page_title": doc.get("title", "")
         }
-        
-        # Add result to original document
-        output_doc = doc.copy()
-        output_doc["result"] = result
-        
-        return output_doc
         
     except Exception as e:
-        # Handle errors gracefully
-        output_doc = doc.copy()
-        output_doc["result"] = {
-            "is_gibberish": None,
-            "status": "ERROR",
-            "reason": f"Processing error: {str(e)}",
-            "error": str(e)
+        # Handle errors gracefully - still return required fields
+        return {
+            "url": doc.get("url", ""),
+            "decision": f"error: {str(e)}",
+            "index": index,
+            "page_title": doc.get("title", "")
         }
-        return output_doc
 
 
 async def process_documents_batch(
@@ -83,19 +85,20 @@ async def process_documents_batch(
         batch_size: Number of documents to process concurrently
     
     Returns:
-        List of processed documents with results
+        List of processed documents with results (url, decision, index, page_title)
     """
     results = []
     
     # Create a semaphore to limit concurrent processing
     semaphore = asyncio.Semaphore(batch_size)
     
-    async def process_with_semaphore(doc):
+    async def process_with_semaphore(doc_with_index):
+        doc, index = doc_with_index
         async with semaphore:
-            return await process_document(doc)
+            return await process_document(doc, index)
     
-    # Process all documents with progress bar
-    tasks = [process_with_semaphore(doc) for doc in documents]
+    # Process all documents with progress bar, passing index
+    tasks = [process_with_semaphore((doc, idx)) for idx, doc in enumerate(documents)]
     results = await tqdm_asyncio.gather(
         *tasks, 
         desc="Processing documents",
@@ -126,17 +129,17 @@ def read_jsonl(file_path: str) -> List[Dict[str, Any]]:
     return documents
 
 
-def write_jsonl(documents: List[Dict[str, Any]], file_path: str):
+def write_json(documents: List[Dict[str, Any]], file_path: str):
     """
-    Write documents to JSONL file.
+    Write documents to JSON file as a single array.
     
     Args:
         documents: List of document dictionaries
-        file_path: Path to output JSONL file
+        file_path: Path to output JSON file
     """
+    print("Writing output file...")
     with open(file_path, 'w', encoding='utf-8') as f:
-        for doc in tqdm(documents, desc="Writing output file"):
-            f.write(json.dumps(doc, ensure_ascii=False) + '\n')
+        json.dump(documents, f, ensure_ascii=False, indent=2)
 
 # =============================================================================
 #                           MAIN ASYNC EXECUTION
@@ -148,7 +151,7 @@ async def main_async(input_file: str, output_file: str, batch_size: int = 10):
     
     Args:
         input_file: Path to input JSONL file
-        output_file: Path to output JSONL file
+        output_file: Path to output JSON file
         batch_size: Number of documents to process concurrently
     """
     print(f"Input file: {input_file}")
@@ -168,15 +171,15 @@ async def main_async(input_file: str, output_file: str, batch_size: int = 10):
     # Count results
     gibberish_count = sum(
         1 for doc in processed_documents 
-        if doc.get("result", {}).get("is_gibberish") == "yes"
+        if doc.get("decision") == "gibberish"
     )
     useful_count = sum(
         1 for doc in processed_documents 
-        if doc.get("result", {}).get("is_gibberish") == "no"
+        if doc.get("decision") == "useful"
     )
     error_count = sum(
         1 for doc in processed_documents 
-        if doc.get("result", {}).get("status") == "ERROR"
+        if doc.get("decision", "").startswith("error:")
     )
     
     print(f"Results:")
@@ -186,7 +189,7 @@ async def main_async(input_file: str, output_file: str, batch_size: int = 10):
     
     # Write output
     print("Step 3: Writing output file...")
-    write_jsonl(processed_documents, output_file)
+    write_json(processed_documents, output_file)
     print(f"✅ Done! Results saved to: {output_file}")
 
 # =============================================================================

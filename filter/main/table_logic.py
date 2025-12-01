@@ -51,7 +51,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fil
 # =============================================================================
 
 DATA_FILE = "/Users/rishabh.singh/Desktop/markdown_filter/filter/data/confluence_markdown.jsonl"
-DEFAULT_TEST_INDEX = 2588
+DEFAULT_TEST_INDEX = 33
 
 # Decision thresholds
 MEANINGFUL_WORDS_THRESHOLD = 3

@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # =============================================================================
 
 DEFAULT_DATA_FILE = "/Users/rishabh.singh/Desktop/markdown_filter/filter/data/confluence_markdown.jsonl"
-DEFAULT_TEST_INDEX = 7193
+DEFAULT_TEST_INDEX = 172
 
 # =============================================================================
 #                           CONVERSION MODULE IMPORT
@@ -61,6 +61,8 @@ MACRO_PATTERNS = {
     'jira': r'\[JIRA:[^\]]+\]',
     'include': r'\[INCLUDE-REF:[^\]]+\]',
     'page': r'\[PAGE-REF:[^\]]+\]',
+    'attachments': r'\[ATTACHMENTS:[^\]]+\]',
+    'generic_macro': r'\[MACRO:[^\]]+\]',  # Catch-all for unhandled macros
 }
 
 # =============================================================================
@@ -575,14 +577,19 @@ def cell_metrics(cell_text: str) -> Dict[str, Any]:
     
     def is_index_pattern(word: str) -> bool:
         """
-        Check if a word is an index/counter (numeric, roman numeral, or alphabetic).
-        Returns True for: 1, 2, 100, i, ii, iii, iv, v, x, a, b, c, aa, bb, etc.
+        Check if a word is an index/counter (roman numeral or alphabetic sequence).
+        
+        NOTE: Pure numbers are NO LONGER treated as indices because they represent
+        meaningful data in most tables (counts, measurements, IDs, etc.).
+        
+        Returns True for: i, ii, iii, iv, v, x, a, b, c, aa, bb, etc.
+        Returns False for: 1, 2, 100, 264, etc. (numbers are data, not indices)
         """
         word_clean = word.strip().lower()
         
-        # Pure numeric (1, 2, 10, 100, etc.)
-        if word_clean.isdigit():
-            return True
+        # DO NOT treat pure numbers as indices - they are meaningful data
+        # Numbers like 264, 190, 6, 5, 0 in tables represent actual data values
+        # Index column detection is handled separately by detect_table_heading()
         
         # Roman numerals (i, ii, iii, iv, v, vi, vii, viii, ix, x, xi, xii, etc.)
         # Common pattern: only contains i, v, x, l, c, d, m
@@ -613,11 +620,12 @@ def cell_metrics(cell_text: str) -> Dict[str, Any]:
     # but keep meaningful display text like "N issues"
     text_for_word_count = _remove_macro_references(text) if has_macro_reference else text
 
-    # Extract all words from the cleaned text
+    # Extract all words from the cleaned text (includes alphanumeric: words AND numbers)
     all_words = re.findall(r'\b\w+\b', text_for_word_count) if not is_empty else []
     total_words = len(all_words)
     
     # Classify words as meaningful, placeholder, or index
+    # NOTE: Pure numbers (1, 264, etc.) are treated as MEANINGFUL data, not indices
     placeholder_words = []
     meaningful_words = []
     index_words = []
@@ -627,12 +635,13 @@ def cell_metrics(cell_text: str) -> Dict[str, Any]:
         # Remove markdown bold/italic markers
         clean_word = word_lower.strip('*_')
         
-        # Check if it's an index pattern first
+        # Check if it's an index pattern (roman numerals, single letters, NOT numbers)
         if is_index_pattern(word):
             index_words.append(word)
         elif clean_word in PLACEHOLDER_WORDS:
             placeholder_words.append(word)
         else:
+            # Numbers and regular words are treated as meaningful content
             meaningful_words.append(word)
     
     meaningful_word_count = len(meaningful_words)

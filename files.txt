@@ -112,3 +112,13 @@ index : URLs
 9822 : https://simpplr.atlassian.net/wiki/spaces/SDA/pages/2913273184/Template+-+Meeting+notes
 10091 : https://simpplr.atlassian.net/wiki/spaces/ABS/pages/3084812809/Template+-+Meeting+notes
 10094 : https://simpplr.atlassian.net/wiki/spaces/INT/pages/3084911115/Template+-+Meeting+notes
+
+
+#######################  dynamic layout pages  ##########################
+0 : https://simpplr.atlassian.net/wiki/spaces/SA/pages/1011679235/Sprint14-QA_Build+1_6thJuly2020
+1 : https://simpplr.atlassian.net/wiki/spaces/SA/pages/1046282245/Sprint15-QA_Build+1_20thJuly2020
+11 : https://simpplr.atlassian.net/wiki/spaces/SA/pages/1137705398/Sprint18-QA_Build+1_26Aug2020
+12 : https://simpplr.atlassian.net/wiki/spaces/SA/pages/1137737950/Sprint18-E2E_Build+2_27Aug2020
+14 : https://simpplr.atlassian.net/wiki/spaces/SA/pages/1235780237/Release3_Sprint_QA_Execution_Report
+33 : https://simpplr.atlassian.net/wiki/spaces/SA/pages/1560707106/Release+4+-+Test+Execution+Summary
+48 : https://simpplr.atlassian.net/wiki/spaces/SS/pages/1707016442/How-to+articles
